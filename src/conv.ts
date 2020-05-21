@@ -189,11 +189,11 @@ function mipsgen(ast: Ast[]): string[] {
         let updatedUnavRegi = new Set<string>();
         for (let j = i; j < ress.length; j++) {
             let lne = ress[j];
-            // if line contains drop, drop listed registers from unavailable
+            // if line contains drop, add all listed registers to unavailable
             let mkclr = /%%:MARK_CLEAR:(.+?):%%/.exec(lne);
             if (mkclr) {
                 let clrs = mkclr[1].split(",");
-                clrs.forEach(clr => updatedUnavRegi.delete(clr));
+                clrs.forEach(clr => updatedUnavRegi.add(clr));
                 continue;
             }
             lne = lne.replace(/%%:variable:(.+?):%%/g, (deflt, letr) => {
