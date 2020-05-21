@@ -113,10 +113,13 @@ function matchTypes(ta: Type, tb: Type): Type {
 // if an expected return value arg is passed, it might be useful
 function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
     // run an expr and set resregister to the expr result;
-    let eai = evalExprAllowImmediate(vnm, expr);
+    let eai = evalExprAnyOut(vnm, expr);
     if (eai !== exprNotAvailable) {
         lines.push(`move ${out} ${eai.reg}`);
         return eai.typ;
+    } else if (expr.expr === "immediate") {
+        lines.push(`li ${out} ${expr.value}`);
+        return "any";
     } else if (expr.expr === "add") {
         let a = evalExprAnyOut(vnm, expr.left, lines);
         let b = evalExprAllowImmediate(vnm, expr.right, lines);

@@ -4,11 +4,10 @@ var x: u32 = 5;
 x = x + 2;
 var y: u32 = 10;
 
-$t0 = 36;
+$v0 = 36;
 $a0 = x;
 \syscall
 !clear $call;
 
 x = x + 3;
 var z: u32 = 8;
-\#  ^ should be in t2 with x in t1 and y in t0
