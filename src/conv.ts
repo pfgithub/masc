@@ -124,9 +124,10 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
 }
 
 function mipsgen(ast: Ast[]): string[] {
-    let res: string[] = [];
+    let ress: string[] = [];
     let varNameMap: VNM = {};
     for (let line of ast) {
+        let res: string[] = [];
         if (line.ast === "ilasm") {
             res.push(line.ilasm);
         } else if (line.ast === "clear") {
@@ -148,10 +149,26 @@ function mipsgen(ast: Ast[]): string[] {
         } else {
             asun(line);
         }
+        let srccode = code
+            .substring(line.pos.start.index, line.pos.end.index)
+            .split("\n");
+        res.forEach((lne, i) => {
+            // distribute source code over these lines evenly
+            ress.push(res + " # " + srccode[i] || "");
+        });
     }
     // determine good registers for all variables
-    // replace
-    return res;
+
+    let fres: string[] = [];
+    let tempassignments: { [key: string]: string } = {};
+    for (let line of ress) {
+        // find unassigned temps (search down for more copies, if it is cleared inbetween uses, try again)
+        // assign
+        // replace
+        fres.push(line);
+    }
+
+    return fres;
 }
 
 let res = mipsgen(baseast).join("\n");
