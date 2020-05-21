@@ -54,6 +54,7 @@ type VNM = {
 };
 
 let exprNotAvailable = ("%%__EXPR__NOT__AVAILABLE%%" as any) as ExprRetV;
+let commentSeparator = "%%__COMMENT_SEP__%%";
 
 type ExprRetV = { typ: Type; reg: string };
 
@@ -154,7 +155,7 @@ function mipsgen(ast: Ast[]): string[] {
             .split("\n");
         res.forEach((lne, i) => {
             // distribute source code over these lines evenly
-            ress.push(res + " # " + srccode[i] || "");
+            ress.push(res + " " + commentSeparator + " " + srccode[i] || "");
         });
     }
     // determine good registers for all variables
