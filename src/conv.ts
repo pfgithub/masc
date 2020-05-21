@@ -243,6 +243,16 @@ function finalize(inraw: string[]): string {
     // when it goes from top to bottom deciding variables,
     // at an if when it reaches the } it jumps to after the else
     // (eg)
+
+    // wait no this is unnecessary
+    // if(a)
+    //   let b
+    // else
+    //   let c
+    // end
+    // will already give the same registers to b and c because b doesn't exist further on in the file
+    // the difficult part is going to be finding lifetimes for loop things
+
     let registerNameMap: { [key: string]: string } = {};
     let solveVariable = (varbl: string, i: number) => {
         let unavailableRegisters = new Set<string>([]);
