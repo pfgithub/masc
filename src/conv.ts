@@ -58,13 +58,6 @@ x += 1;    // now actually sets x so t0 is not allowed
 
 */
 
-type VNM = {
-    [key: string]: {
-        type: Type;
-        tempname: string; // before returning, replace all instances of tempname with the actual name
-    };
-};
-
 let exprNotAvailable = ("%%__EXPR__NOT__AVAILABLE%%" as any) as ExprRetV;
 let commentSeparator = "%%__COMMENT_SEP__%%";
 
@@ -86,7 +79,8 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
     if (expr.expr === "register") {
         return { reg: genreg(expr.register), typ: "any" };
     } else if (expr.expr === "variable") {
-        let va = vnm[expr.var];
+        let va = vnm.get(expr.var);
+        if (!va) throw new Error("variable not found " + expr.var);
         return { reg: va.tempname, typ: va.type };
     } else if (lines) {
         let out = gentemp();
@@ -139,9 +133,33 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
     throw new Error("Not implemented expr: " + expr.expr);
 }
 
-function mipsgen(ast: Ast[]): string[] {
+type VarInfo = {
+    type: Type;
+    tempname: string;
+};
+type VNM = {
+    get: (key: string) => VarInfo | undefined;
+    set: (key: string, value: VarInfo) => void;
+};
+function mkVNM(parent?: VNM): VNM {
+    let map = new Map<string, VarInfo>();
+    return {
+        get(key) {
+            let res = map.get(key);
+            if (!res && parent) return parent.get(key);
+            return res;
+        },
+        set(key, value) {
+            if (map.get(key))
+                throw new Error("variable already defined: " + key);
+            map.set(key, value);
+        },
+    };
+}
+
+function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     let ress: string[] = [];
-    let varNameMap: VNM = {};
+    let vnm: VNM = mkVNM(parentVNM);
     for (let line of ast) {
         let res: string[] = [];
         let comment = true;
@@ -157,22 +175,22 @@ function mipsgen(ast: Ast[]): string[] {
                     ":%%",
             );
         } else if (line.ast === "defvar") {
-            if (varNameMap[line.name]) {
+            if (vnm.get(line.name)) {
                 throw new Error("var already exists");
             }
             let tempname = gentemp();
             let type = evalType(line.type);
             // right now this is only one way, it would also be useful to tell evalExpr about what type we expect (if we expect one)
-            let rest = evalExpr(varNameMap, line.default, tempname, res);
+            let rest = evalExpr(vnm, line.default, tempname, res);
             matchTypes(rest, type); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
-            varNameMap[line.name] = { type, tempname };
+            vnm.set(line.name, { type, tempname });
         } else if (line.ast === "setvar") {
-            let eao = evalExprAnyOut(varNameMap, line.name);
-            let rt = evalExpr(varNameMap, line.value, eao.reg, res);
+            let eao = evalExprAnyOut(vnm, line.name);
+            let rt = evalExpr(vnm, line.value, eao.reg, res);
             matchTypes(eao.typ, rt);
         } else if (line.ast === "if") {
-            let left = evalExprAnyOut(varNameMap, line.condleft, res);
-            let right = evalExprAllowImmediate(varNameMap, line.condright, res);
+            let left = evalExprAnyOut(vnm, line.condleft, res);
+            let right = evalExprAllowImmediate(vnm, line.condright, res);
             let condt = matchTypes(left.typ, right.typ);
             let u: string;
             if (condt === "u32") u = "u";
@@ -200,7 +218,8 @@ function mipsgen(ast: Ast[]): string[] {
             } else {
                 asun(line.condition);
             }
-            // mipsgen(indent + 1)
+            let rescode: string[] = mipsgen(line.code, vnm); // TODO pass in variables
+            res.push(...rescode.map(l => "    " + l));
             res.push("# todo code");
             res.push(lbl + ":");
         } else {

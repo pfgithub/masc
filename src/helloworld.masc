@@ -17,11 +17,12 @@ var z: u32 = 8;
 var must_save: u32 = 8;
 
 if z == 8 {
-    var should_be_in_t0: u32 = 5;
+    var should_be_in_s1: u32 = 5;
     $v0 = 4;
     \la $a0, helloworldtxt
     \syscall
     !clear $call;
+    should_be_in_s1 = should_be_in_s1 + 1;
 }
 
 must_save = must_save + 3;
