@@ -111,7 +111,9 @@ function matchTypes(ta: Type, tb: Type): Type {
 function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
     // run an expr and set resregister to the expr result;
     let eai = evalExprAnyOut(vnm, expr);
+    out = out.replace("%%:", "%%:out:");
     if (eai !== exprNotAvailable) {
+        if (out === eai.reg) return eai.typ;
         lines.push(`move ${out} ${eai.reg}`);
         return eai.typ;
     } else if (expr.expr === "immediate") {
@@ -266,14 +268,6 @@ function finalize(inraw: string[]): string {
                 clrs.forEach(clr => updatedUnavRegi.add(clr));
                 continue;
             }
-            lne = lne.replace(/%%:variable:(.+?):%%/g, (deflt, letr) => {
-                if (registerNameMap[letr])
-                    return "%%:register:" + registerNameMap[letr] + ":%%";
-                return deflt;
-            });
-            let regs = [...lne.matchAll(/%%:register:(..):%%/g)].map(q => q[1]);
-            // if line contains other register, add to updatedUnavailable
-            regs.map(reg => updatedUnavRegi.add(reg));
             // if line contains this variable, move updated to unavailable
             if (lne.includes("%%:variable:" + varbl + ":%%")) {
                 for (let uur of updatedUnavRegi) {
@@ -281,26 +275,49 @@ function finalize(inraw: string[]): string {
                 }
                 updatedUnavRegi.clear(); // unnecessary but why not
             }
+            // if line contains other register, add to updatedUnavailable
+            lne = lne.replace(
+                /%%:((?:out\:)?)variable:(.+?):%%/g,
+                (deflt, outmby, letr) => {
+                    if (registerNameMap[letr])
+                        return (
+                            "%%:" +
+                            outmby +
+                            "register:" +
+                            registerNameMap[letr] +
+                            ":%%"
+                        );
+                    return deflt;
+                },
+            );
+            let regs = [...lne.matchAll(/%%:register:(..):%%/g)].map(q => q[1]);
+            let outRegs = [...lne.matchAll(/%%:out:register:(..):%%/g)].map(
+                q => q[1],
+            );
+            regs.map(reg => unavailableRegisters.add(reg));
+            outRegs.map(reg => updatedUnavRegi.add(reg));
         }
         return unavailableRegisters;
     };
     let fres: string[] = [];
     inraw.forEach((line, i) => {
         fres.push(
-            line.replace(/%%:variable:(.+?):%%/g, (_, letr) => {
+            line.replace(/%%:((?:out\:)?)variable:(.+?):%%/g, (_, om, letr) => {
                 if (registerNameMap[letr])
                     return "%%:register:" + registerNameMap[letr] + ":%%";
                 let unavailable = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
                 registerNameMap[letr] = reg;
-                return "%%:register:" + reg + ":%%";
+                return "%%:" + om + "register:" + reg + ":%%";
             }),
         );
     });
 
     let txt = fres
-        .map(line => line.replace(/%%:register:(..):%%/g, (_, q) => "$" + q))
+        .map(line =>
+            line.replace(/%%:(?:out\:)?register:(..):%%/g, (_, q) => "$" + q),
+        )
         .filter(l => !l.trim().startsWith("%%:MARK_CLEAR"));
 
     //
