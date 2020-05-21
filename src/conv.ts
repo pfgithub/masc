@@ -129,7 +129,9 @@ function mipsgen(ast: Ast[]): string[] {
     let varNameMap: VNM = {};
     for (let line of ast) {
         let res: string[] = [];
+        let comment = true;
         if (line.ast === "ilasm") {
+            comment = false;
             res.push(line.ilasm);
         } else if (line.ast === "clear") {
             // TODO
@@ -155,7 +157,8 @@ function mipsgen(ast: Ast[]): string[] {
             .split("\n");
         res.forEach((lne, i) => {
             // distribute source code over these lines evenly
-            ress.push(res + " " + commentSeparator + " " + srccode[i] || "");
+            if (comment) ress.push(lne + commentSeparator + srccode[i] || "");
+            else ress.push(lne);
         });
     }
     // determine good registers for all variables
@@ -172,6 +175,23 @@ function mipsgen(ast: Ast[]): string[] {
     return fres;
 }
 
-let res = mipsgen(baseast).join("\n");
+function finalize(txt: string[]): string {
+    let lsplits = txt.map(l => l.split(commentSeparator));
+    let maxLineLen = 12;
+    for (let [code, comment] of lsplits) {
+        comment = comment || "";
+        let tsc = /^ */.exec(comment)![0].length;
+        let rl = code.length - tsc + 1;
+        if (rl > maxLineLen) maxLineLen = rl;
+    }
+    let resLines: string[] = [];
+    for (let [code, comment] of lsplits) {
+        comment = comment || "";
+        resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
+    }
+    return resLines.join("\n");
+}
+
+let res = finalize(mipsgen(baseast));
 fs.writeFileSync(__dirname + "/code.mips", res, "utf-8");
 console.log(res);
