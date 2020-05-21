@@ -24,6 +24,20 @@ t1__1 = t1__1 + 1;
 var unused: u32 = t0__2;
 t0__1 = 5;
 \
+\
+\
+var expct_t0: u32 = 0;
+var expct_t1: u32 = 1;
+var expct_t0_also: u32 = 2;
+expct_t1 = expct_t1 + 1;
+expct_t0_also = expct_t0_also + 2;
+$t0 = 5;
+expct_t0 = expct_t1;
+$t0 = 6;
+expct_t0 = expct_t1;
+\
+\
+\
 var x: u32 = 5;
 x = x + 2;
 var y: u32 = 10;

@@ -274,6 +274,11 @@ function finalize(inraw: string[]): string {
                     unavailableRegisters.add(uur);
                 }
                 updatedUnavRegi.clear(); // unnecessary but why not
+                continue;
+            }
+            if (lne.includes("%%:out:variable:" + varbl + ":%%")) {
+                updatedUnavRegi.clear();
+                continue;
             }
             // if line contains other register, add to updatedUnavailable
             lne = lne.replace(
