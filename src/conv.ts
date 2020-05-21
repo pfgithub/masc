@@ -11,7 +11,10 @@ let asun = (v: never): never => {
 
 let gtid = 0;
 function gentemp(): string {
-    return "%%TEMP__" + gtid++ + "%%";
+    return "%%:variable:" + gtid++ + ":%%";
+}
+function genreg(regnme: string): string {
+    return "%%:register:" + regnme + ":%%";
 }
 
 type Type = "u32" | "i32" | "any";
@@ -68,7 +71,7 @@ function evalExprAllowImmediate(
 
 function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
     if (expr.expr === "register") {
-        return { reg: "$" + expr.register, typ: "any" };
+        return { reg: genreg(expr.register), typ: "any" };
     } else if (expr.expr === "variable") {
         let va = vnm[expr.var];
         return { reg: va.tempname, typ: va.type };
@@ -151,4 +154,6 @@ function mipsgen(ast: Ast[]): string[] {
     return res;
 }
 
-console.log(mipsgen(baseast).join("\n"));
+let res = mipsgen(baseast).join("\n");
+fs.writeFileSync(__dirname + "/code.mips", res, "utf-8");
+console.log(res);
