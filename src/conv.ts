@@ -16,6 +16,9 @@ function gentemp(): string {
 function genreg(regnme: string): string {
     return "%%:register:" + regnme + ":%%";
 }
+function genlabel(): string {
+    return "__renameme_" + gtid++;
+}
 
 type Type = "u32" | "i32" | "any";
 
@@ -168,7 +171,38 @@ function mipsgen(ast: Ast[]): string[] {
             let rt = evalExpr(varNameMap, line.value, eao.reg, res);
             matchTypes(eao.typ, rt);
         } else if (line.ast === "if") {
-            res.push("# todo if");
+            let left = evalExprAnyOut(varNameMap, line.condleft, res);
+            let right = evalExprAllowImmediate(varNameMap, line.condright, res);
+            let condt = matchTypes(left.typ, right.typ);
+            let u: string;
+            if (condt === "u32") u = "u";
+            else if (condt === "i32") u = "";
+            else throw new Error("unsupported if type " + condt);
+            // this would be much more fun to code in zig
+            // I didn't want to because it would require setting up a
+            //    parser though and I've already done that twice and
+            //    am working on a third
+            let lbl = genlabel();
+            if (line.condition === "==") {
+                if (right.reg === "0") res.push(`bnez ${left.reg}, ${lbl}`);
+                else res.push(`bne ${left.reg} ${right.reg}, ${lbl}`);
+            } else if (line.condition == "!=") {
+                if (right.reg === "0") res.push(`beqz ${left.reg}, ${lbl}`);
+                else res.push(`beq ${left.reg} ${right.reg}, ${lbl}`);
+            } else if (line.condition == ">=") {
+                res.push(`blt${u} ${left.reg} ${right.reg}, ${lbl}`);
+            } else if (line.condition == ">") {
+                res.push(`ble${u} ${left.reg} ${right.reg}, ${lbl}`);
+            } else if (line.condition == "<") {
+                res.push(`bge${u} ${left.reg} ${right.reg}, ${lbl}`);
+            } else if (line.condition == "<=") {
+                res.push(`bgt${u} ${left.reg} ${right.reg}, ${lbl}`);
+            } else {
+                asun(line.condition);
+            }
+            // mipsgen(indent + 1)
+            res.push("# todo code");
+            res.push(lbl + ":");
         } else {
             asun(line);
         }
@@ -177,7 +211,8 @@ function mipsgen(ast: Ast[]): string[] {
             .split("\n");
         res.forEach((lne, i) => {
             // distribute source code over these lines evenly
-            if (comment) ress.push(lne + commentSeparator + srccode[i] || "");
+            if (comment && !lne.includes(commentSeparator))
+                ress.push(lne + commentSeparator + srccode[i] || "");
             else ress.push(lne);
         });
     }
