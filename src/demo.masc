@@ -1,0 +1,50 @@
+\.data
+\    comma_space: .asciiz ", "
+
+\.text
+\j main
+
+# functions
+fn fibonacci(in_array: [*]u32, index: u32) void {
+    var index: word = 0;
+    
+    while(true) : ({
+        index += 1;
+    }) {
+        if(index == count) break;
+        var current_address = in_array[index];
+        if(index <= 1) {
+            current_address.* = index;
+            continue;
+        }
+        current_address.* = current_address[-1] + current_address[-2];
+    }
+}
+
+fn print_results(data_array: [*]u32, count: u32) void {
+    var index: word = 0;
+    while(true) {
+        index += 1;
+        if(index == count) break;
+        if(index != 1){
+            use $callregs
+            \li $v0, 4
+            \la $a0, comma_space
+            \syscall
+            drop $callregs
+        }
+        :syscall(.print_integer_unsigned, data_array[index]);
+    }
+}
+
+\main:
+{
+    var count: word = syscall(.read_i32);
+
+    var mem: [count]u32 = undefined;
+
+    fibonacci(&mem, count);
+    // todo print("Fibonacci sequence: ");
+    print_results(&mem, count);
+    // todo print("\n");
+}
