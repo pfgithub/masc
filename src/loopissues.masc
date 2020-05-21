@@ -1,0 +1,6 @@
+var x: u32 = 5;
+forever {
+	x = x + 1;
+	var y: u32 = 6;
+	\# have to make sure this does not get put in t0
+}

@@ -339,7 +339,14 @@ export type Ast =
     | (P & { ast: "ilasm"; ilasm: string })
     | (P & { ast: "clear"; registers: string[] })
     | (P & { ast: "defvar"; name: string; type: AstType; default: AstExpr })
-    | (P & { ast: "setvar"; name: AstVar; value: AstExpr });
+    | (P & { ast: "setvar"; name: AstVar; value: AstExpr })
+    | (P & {
+          ast: "if";
+          condleft: AstExpr;
+          condition: "==" | "!=" | "<=" | "<" | ">" | ">=";
+          condright: AstExpr;
+          code: Ast[];
+      });
 
 type EventualResult = Ast | Ast[] | AstExpr | AstType | string;
 type EventualResultAnd = Ast & AstType & AstVar & AstExpr & string;
@@ -435,7 +442,7 @@ l.set(
     star(
         p(
             _,
-            or(o.ilasmlyn, o.clrlyn, o.setvarlyn, o.defvarlyn).scb(
+            or(o.ilasmlyn, o.clrlyn, o.iflyn, o.setvarlyn, o.defvarlyn).scb(
                 r => r.data.val,
             ),
             _,
@@ -453,6 +460,31 @@ l.set(
     p("!clear", _req, "$", o.identifier, _, ";").scb((r, pos) =>
         mkclear([r[3].val], pos),
     ),
+);
+
+// there is no operator == so this is fine
+l.set(
+    "iflyn",
+    p(
+        "if",
+        /*lockin*/ _,
+        o.expr,
+        _,
+        or("==", "!=", "<=", "<", ">", ">=").scb(r => r.data.val),
+        _,
+        o.expr,
+        _,
+        "{",
+        o.code,
+        "}",
+    ).scb((r, pos) => ({
+        ast: "if",
+        condleft: r[2].val,
+        condition: r[4].val as any,
+        condright: r[6].val,
+        code: (r[9].val as any) as Ast[],
+        pos,
+    })),
 );
 
 l.set(

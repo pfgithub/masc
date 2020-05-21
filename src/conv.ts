@@ -167,6 +167,8 @@ function mipsgen(ast: Ast[]): string[] {
             let eao = evalExprAnyOut(varNameMap, line.name);
             let rt = evalExpr(varNameMap, line.value, eao.reg, res);
             matchTypes(eao.typ, rt);
+        } else if (line.ast === "if") {
+            res.push("# todo if");
         } else {
             asun(line);
         }
