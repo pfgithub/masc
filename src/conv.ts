@@ -29,6 +29,15 @@ let regExpansions: { [key: string]: string[] } = {
     ]
 };
 
+// use from left to right, preferring left when available
+// prettier-ignore
+let userRegisters: string[] = [
+    "t0", "t1", "t2", "t3", "t4","t5", "t6", "t7",
+    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+    "a0", "a1", "a2", "a3",
+    "v0", "v1"
+];
+
 function evalType(tast: AstType): Type {
     return tast.kind;
 }
@@ -134,7 +143,13 @@ function mipsgen(ast: Ast[]): string[] {
             comment = false;
             res.push(line.ilasm);
         } else if (line.ast === "clear") {
-            // TODO
+            res.push(
+                "%%:MARK_CLEAR:" +
+                    line.registers
+                        .flatMap(r => regExpansions[r] || [r])
+                        .join(",") +
+                    ":%%",
+            );
         } else if (line.ast === "defvar") {
             if (varNameMap[line.name]) {
                 throw new Error("var already exists");
@@ -164,15 +179,52 @@ function mipsgen(ast: Ast[]): string[] {
     // determine good registers for all variables
 
     let fres: string[] = [];
-    let tempassignments: { [key: string]: string } = {};
-    for (let line of ress) {
-        // find unassigned temps (search down for more copies, if it is cleared inbetween uses, try again)
-        // assign
-        // replace
-        fres.push(line);
-    }
 
-    return fres;
+    let registerNameMap: { [key: string]: string } = {};
+    let solveVariable = (varbl: string, i: number) => {
+        let unavailableRegisters = new Set<string>([]);
+        let updatedUnavRegi = new Set<string>();
+        for (let j = i; j < ress.length; j++) {
+            let lne = ress[j];
+            // if line contains drop, drop listed registers from unavailable
+            let mkclr = /%%:MARK_CLEAR:(.+?):%%/.exec(lne);
+            if (mkclr) {
+                let clrs = mkclr[1].split(",");
+                clrs.forEach(clr => updatedUnavRegi.delete(clr));
+                continue;
+            }
+            lne = lne.replace(/%%:variable:(.+?):%%/g, (deflt, letr) => {
+                if (registerNameMap[letr])
+                    return "%%:register:" + registerNameMap[letr] + ":%%";
+                return deflt;
+            });
+            let regs = [...lne.matchAll(/%%:register:(..):%%/g)].map(q => q[1]);
+            // if line contains other register, add to updatedUnavailable
+            regs.map(reg => updatedUnavRegi.add(reg));
+            // if line contains this variable, move updated to unavailable
+            if (lne.includes("%%:variable:" + varbl + ":%%")) {
+                for (let uur of updatedUnavRegi) {
+                    unavailableRegisters.add(uur);
+                }
+                updatedUnavRegi.clear(); // unnecessary but why not
+            }
+        }
+        return unavailableRegisters;
+    };
+    ress.forEach((line, i) => {
+        fres.push(
+            line.replace(/%%:variable:(.+?):%%/g, (_, letr) => {
+                let unavailable = solveVariable(letr, i);
+                let reg = userRegisters.find(ussr => !unavailable.has(ussr));
+                if (!reg) throw new Error("Out of registers!");
+                return "%%:register:" + reg + ":%%";
+            }),
+        );
+    });
+
+    return fres
+        .map(line => line.replace(/%%:register:(..):%%/g, (_, q) => "$" + q))
+        .filter(l => !l.startsWith("%%:MARK_CLEAR"));
 }
 
 function finalize(txt: string[]): string {
