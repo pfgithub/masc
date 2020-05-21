@@ -2,6 +2,13 @@
 \    helloworldtxt: .asciiz "Hello, World!"
 \.text
 
+var t0: u32 = 0;
+var t1: u32 = 1;
+var t2: u32 = 2;
+t0 = t0;
+t1 = t1;
+t2 = t2;
+
 var x: u32 = 5;
 x = x + 2;
 var y: u32 = 10;
@@ -11,20 +18,23 @@ $a0 = x;
 \syscall
 !clear $call;
 
-x = x + 3;
 var z: u32 = 8;
+y = y + 1;
+x = x + 3;
 
-var must_save: u32 = 8;
+var expct_s0: u32 = 8;
 
 if z == 8 {
-    var should_be_in_s1: u32 = 5;
+    var expct_s1: u32 = 5;
+    
     $v0 = 4;
     \la $a0, helloworldtxt
     \syscall
     !clear $call;
-    should_be_in_s1 = should_be_in_s1 + 1;
+    
+    expct_s1 = expct_s1 + 1;
 }
 
-must_save = must_save + 3;
+expct_s0 = expct_s0 + 3;
 
 \\# loops will have some implications for register selection, so TODO.

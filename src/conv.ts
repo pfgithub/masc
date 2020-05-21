@@ -235,16 +235,20 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             else ress.push(lne);
         });
     }
-    // determine good registers for all variables
+    return ress;
+}
 
-    let fres: string[] = [];
-
+function finalize(inraw: string[]): string {
+    // I want this to have a concept of control flow
+    // when it goes from top to bottom deciding variables,
+    // at an if when it reaches the } it jumps to after the else
+    // (eg)
     let registerNameMap: { [key: string]: string } = {};
     let solveVariable = (varbl: string, i: number) => {
         let unavailableRegisters = new Set<string>([]);
         let updatedUnavRegi = new Set<string>();
-        for (let j = i; j < ress.length; j++) {
-            let lne = ress[j];
+        for (let j = i; j < inraw.length; j++) {
+            let lne = inraw[j];
             // if line contains drop, add all listed registers to unavailable
             let mkclr = /%%:MARK_CLEAR:(.+?):%%/.exec(lne);
             if (mkclr) {
@@ -270,23 +274,29 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         }
         return unavailableRegisters;
     };
-    ress.forEach((line, i) => {
+    let fres: string[] = [];
+    inraw.forEach((line, i) => {
         fres.push(
             line.replace(/%%:variable:(.+?):%%/g, (_, letr) => {
+                if (registerNameMap[letr])
+                    return "%%:register:" + registerNameMap[letr] + ":%%";
                 let unavailable = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
+                registerNameMap[letr] = reg;
                 return "%%:register:" + reg + ":%%";
             }),
         );
     });
 
-    return fres
+    let txt = fres
         .map(line => line.replace(/%%:register:(..):%%/g, (_, q) => "$" + q))
-        .filter(l => !l.startsWith("%%:MARK_CLEAR"));
-}
+        .filter(l => !l.trim().startsWith("%%:MARK_CLEAR"));
 
-function finalize(txt: string[]): string {
+    //
+
+    //
+
     let lsplits = txt.map(l => l.split(commentSeparator));
     let maxLineLen = 12;
     for (let [code, comment] of lsplits) {
@@ -303,6 +313,8 @@ function finalize(txt: string[]): string {
     return resLines.join("\n");
 }
 
-let res = finalize(mipsgen(baseast));
+let mair = mipsgen(baseast);
+fs.writeFileSync(__dirname + "/code.mair", mair.join("\n"), "utf-8");
+let res = finalize(mair);
 fs.writeFileSync(__dirname + "/code.mips", res, "utf-8");
 console.log(res);

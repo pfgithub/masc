@@ -1,3 +1,4 @@
 node_modules/
 src/code.json
 src/code.mips
+src/code.mair
