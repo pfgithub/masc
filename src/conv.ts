@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import { parse, Ast, AstType, AstExpr } from "./build";
 
-const code = fs.readFileSync("src/helloworld.masc", "utf-8");
-const baseast = parse(code) as Ast[];
+const inputCode = fs.readFileSync("src/helloworld.masc", "utf-8");
+const baseast = parse(inputCode) as Ast[];
 
 let asun = (v: never): never => {
     console.log(v);
@@ -109,13 +109,13 @@ function matchTypes(ta: Type, tb: Type): Type {
 
 // if an expected return value arg is passed, it might be useful
 function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
-    // run an expr and set resregister to the expr result;
-    let eai = evalExprAnyOut(vnm, expr);
     out = out.replace("%%:", "%%:out:");
-    if (eai !== exprNotAvailable) {
-        if (out === eai.reg) return eai.typ;
-        lines.push(`move ${out} ${eai.reg}`);
-        return eai.typ;
+    // run an expr and set resregister to the expr result;
+    let simpleRegister = evalExprAnyOut(vnm, expr);
+    if (simpleRegister !== exprNotAvailable) {
+        if (simpleRegister.reg === out) return simpleRegister.typ;
+        lines.push(`move ${out} ${simpleRegister.reg}`);
+        return simpleRegister.typ;
     } else if (expr.expr === "immediate") {
         lines.push(`li ${out} ${expr.value}`);
         return "any";
@@ -143,7 +143,7 @@ type VNM = {
     get: (key: string) => VarInfo | undefined;
     set: (key: string, value: VarInfo) => void;
 };
-function mkVNM(parent?: VNM): VNM {
+function makeVariableNameMap(parent?: VNM): VNM {
     let map = new Map<string, VarInfo>();
     return {
         get(key) {
@@ -160,16 +160,14 @@ function mkVNM(parent?: VNM): VNM {
 }
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
-    let ress: string[] = [];
-    let vnm: VNM = mkVNM(parentVNM);
+    let finalResultCode: string[] = [];
+    let vnm: VNM = makeVariableNameMap(parentVNM);
     for (let line of ast) {
-        let res: string[] = [];
-        let comment = true;
+        let code: string[] = [];
         if (line.ast === "ilasm") {
-            comment = false;
-            res.push(line.ilasm);
+            code.push(line.ilasm + commentSeparator);
         } else if (line.ast === "clear") {
-            res.push(
+            code.push(
                 "%%:MARK_CLEAR:" +
                     line.registers
                         .flatMap(r => regExpansions[r] || [r])
@@ -181,66 +179,66 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                 throw new Error("var already exists");
             }
             let tempname = gentemp();
-            let type = evalType(line.type);
+            let defType = evalType(line.type);
             // right now this is only one way, it would also be useful to tell evalExpr about what type we expect (if we expect one)
-            let rest = evalExpr(vnm, line.default, tempname, res);
-            matchTypes(rest, type); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
-            vnm.set(line.name, { type, tempname });
+            let exprResultType = evalExpr(vnm, line.default, tempname, code);
+            matchTypes(defType, exprResultType); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
+            vnm.set(line.name, { type: defType, tempname });
         } else if (line.ast === "setvar") {
             let eao = evalExprAnyOut(vnm, line.name);
-            let rt = evalExpr(vnm, line.value, eao.reg, res);
+            let rt = evalExpr(vnm, line.value, eao.reg, code);
             matchTypes(eao.typ, rt);
         } else if (line.ast === "if") {
-            let left = evalExprAnyOut(vnm, line.condleft, res);
-            let right = evalExprAllowImmediate(vnm, line.condright, res);
-            let condt = matchTypes(left.typ, right.typ);
+            let left = evalExprAnyOut(vnm, line.condleft, code);
+            let right = evalExprAllowImmediate(vnm, line.condright, code);
+            let conditionType = matchTypes(left.typ, right.typ);
             let u: string;
-            if (condt === "u32") u = "u";
-            else if (condt === "i32") u = "";
-            else throw new Error("unsupported if type " + condt);
+            if (conditionType === "u32") u = "u";
+            else if (conditionType === "i32") u = "";
+            else throw new Error("unsupported if type " + conditionType);
             // this would be much more fun to code in zig
             // I didn't want to because it would require setting up a
             //    parser though and I've already done that twice and
             //    am working on a third
             let lbl = genlabel();
             if (line.condition === "==") {
-                if (right.reg === "0") res.push(`bnez ${left.reg}, ${lbl}`);
-                else res.push(`bne ${left.reg} ${right.reg}, ${lbl}`);
+                if (right.reg === "0") code.push(`bnez ${left.reg}, ${lbl}`);
+                else code.push(`bne ${left.reg} ${right.reg}, ${lbl}`);
             } else if (line.condition == "!=") {
-                if (right.reg === "0") res.push(`beqz ${left.reg}, ${lbl}`);
-                else res.push(`beq ${left.reg} ${right.reg}, ${lbl}`);
+                if (right.reg === "0") code.push(`beqz ${left.reg}, ${lbl}`);
+                else code.push(`beq ${left.reg} ${right.reg}, ${lbl}`);
             } else if (line.condition == ">=") {
-                res.push(`blt${u} ${left.reg} ${right.reg}, ${lbl}`);
+                code.push(`blt${u} ${left.reg} ${right.reg}, ${lbl}`);
             } else if (line.condition == ">") {
-                res.push(`ble${u} ${left.reg} ${right.reg}, ${lbl}`);
+                code.push(`ble${u} ${left.reg} ${right.reg}, ${lbl}`);
             } else if (line.condition == "<") {
-                res.push(`bge${u} ${left.reg} ${right.reg}, ${lbl}`);
+                code.push(`bge${u} ${left.reg} ${right.reg}, ${lbl}`);
             } else if (line.condition == "<=") {
-                res.push(`bgt${u} ${left.reg} ${right.reg}, ${lbl}`);
+                code.push(`bgt${u} ${left.reg} ${right.reg}, ${lbl}`);
             } else {
                 asun(line.condition);
             }
             let rescode: string[] = mipsgen(line.code, vnm); // TODO pass in variables
-            res.push(...rescode.map(l => "    " + l));
-            res.push("# todo code");
-            res.push(lbl + ":");
+            code.push(...rescode.map(l => "    " + l));
+            code.push("# todo code");
+            code.push(lbl + ":");
         } else {
             asun(line);
         }
-        let srccode = code
+        let srccode = inputCode
             .substring(line.pos.start.index, line.pos.end.index)
             .split("\n");
-        res.forEach((lne, i) => {
+        code.forEach((lne, i) => {
             // distribute source code over these lines evenly
-            if (comment && !lne.includes(commentSeparator))
-                ress.push(lne + commentSeparator + srccode[i] || "");
-            else ress.push(lne);
+            if (lne.includes(commentSeparator)) finalResultCode.push(lne);
+            else
+                finalResultCode.push(lne + commentSeparator + srccode[i] || "");
         });
     }
-    return ress;
+    return finalResultCode;
 }
 
-function finalize(inraw: string[]): string {
+function finalize(rawIR: string[]): string {
     // I want this to have a concept of control flow
     // when it goes from top to bottom deciding variables,
     // at an if when it reaches the } it jumps to after the else
@@ -256,32 +254,32 @@ function finalize(inraw: string[]): string {
     // the difficult part is going to be finding lifetimes for loop things
 
     let registerNameMap: { [key: string]: string } = {};
-    let solveVariable = (varbl: string, i: number) => {
+    let solveVariable = (variableID: string, startIndex: number) => {
         let unavailableRegisters = new Set<string>([]);
-        let updatedUnavRegi = new Set<string>();
-        for (let j = i; j < inraw.length; j++) {
-            let lne = inraw[j];
+        let unavRegisIfReferenced = new Set<string>();
+        for (let j = startIndex; j < rawIR.length; j++) {
+            let line = rawIR[j];
             // if line contains drop, add all listed registers to unavailable
-            let mkclr = /%%:MARK_CLEAR:(.+?):%%/.exec(lne);
-            if (mkclr) {
-                let clrs = mkclr[1].split(",");
-                clrs.forEach(clr => updatedUnavRegi.add(clr));
+            let clearMarkMatch = /%%:MARK_CLEAR:(.+?):%%/.exec(line);
+            if (clearMarkMatch) {
+                let clrs = clearMarkMatch[1].split(",");
+                clrs.forEach(clr => unavRegisIfReferenced.add(clr));
                 continue;
             }
             // if line contains this variable, move updated to unavailable
-            if (lne.includes("%%:variable:" + varbl + ":%%")) {
-                for (let uur of updatedUnavRegi) {
+            if (line.includes("%%:variable:" + variableID + ":%%")) {
+                for (let uur of unavRegisIfReferenced) {
                     unavailableRegisters.add(uur);
                 }
-                updatedUnavRegi.clear(); // unnecessary but why not
+                unavRegisIfReferenced.clear(); // unnecessary but why not
                 continue;
             }
-            if (lne.includes("%%:out:variable:" + varbl + ":%%")) {
-                updatedUnavRegi.clear();
+            if (line.includes("%%:out:variable:" + variableID + ":%%")) {
+                unavRegisIfReferenced.clear();
                 continue;
             }
             // if line contains other register, add to updatedUnavailable
-            lne = lne.replace(
+            line = line.replace(
                 /%%:((?:out\:)?)variable:(.+?):%%/g,
                 (deflt, outmby, letr) => {
                     if (registerNameMap[letr])
@@ -295,18 +293,20 @@ function finalize(inraw: string[]): string {
                     return deflt;
                 },
             );
-            let regs = [...lne.matchAll(/%%:register:(..):%%/g)].map(q => q[1]);
-            let outRegs = [...lne.matchAll(/%%:out:register:(..):%%/g)].map(
+            let regs = [...line.matchAll(/%%:register:(..):%%/g)].map(
+                q => q[1],
+            );
+            let outRegs = [...line.matchAll(/%%:out:register:(..):%%/g)].map(
                 q => q[1],
             );
             regs.map(reg => unavailableRegisters.add(reg));
-            outRegs.map(reg => updatedUnavRegi.add(reg));
+            outRegs.map(reg => unavRegisIfReferenced.add(reg));
         }
         return unavailableRegisters;
     };
-    let fres: string[] = [];
-    inraw.forEach((line, i) => {
-        fres.push(
+    let registersOnlyIR: string[] = [];
+    rawIR.forEach((line, i) => {
+        registersOnlyIR.push(
             line.replace(/%%:((?:out\:)?)variable:(.+?):%%/g, (_, om, letr) => {
                 if (registerNameMap[letr])
                     return "%%:register:" + registerNameMap[letr] + ":%%";
@@ -319,7 +319,7 @@ function finalize(inraw: string[]): string {
         );
     });
 
-    let txt = fres
+    let txt = registersOnlyIR
         .map(line =>
             line.replace(/%%:(?:out\:)?register:(..):%%/g, (_, q) => "$" + q),
         )
