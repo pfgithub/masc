@@ -16,8 +16,11 @@ function gentemp(): string {
 function genreg(regnme: string): string {
     return "%%:register:" + regnme + ":%%";
 }
-function genlabel(): string {
-    return "__renameme_" + gtid++;
+let usedLoopNames: { [key: string]: number } = {};
+function genlabel(name: string): string {
+    if (usedLoopNames[name]) return name + "_" + ++usedLoopNames[name];
+    usedLoopNames[name]++;
+    return name + "_0";
 }
 
 type Type = "u32" | "i32" | "any";
@@ -214,7 +217,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             //    parser though and I've already done that twice and
             //    am working on a third
 
-            let lbl = genlabel();
+            let lbl = genlabel("if_end");
             let requiresCode = true;
 
             let rescode = mipsgen(line.code, vnm); // TODO pass in variables
@@ -250,8 +253,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                 code.push(lbl + ":");
             }
         } else if (line.ast === "loop") {
-            let startLabel = genlabel();
-            let endLabel = genlabel();
+            let startLabel = genlabel("loop_continue");
+            let endLabel = genlabel("loop_end");
 
             let vctx = makeVariableNameMap(vnm);
             vctx.setLoop({ start: startLabel, end: endLabel });
