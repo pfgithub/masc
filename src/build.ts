@@ -346,7 +346,10 @@ export type Ast =
           condition: "==" | "!=" | "<=" | "<" | ">" | ">=";
           condright: AstExpr;
           code: Ast[];
-      });
+      })
+    | (P & { ast: "loop"; code: Ast[] })
+    | (P & { ast: "break" })
+    | (P & { ast: "continue" });
 
 type EventualResult = Ast | Ast[] | AstExpr | AstType | string;
 type EventualResultAnd = Ast & AstType & AstVar & AstExpr & string;
@@ -442,9 +445,16 @@ l.set(
     star(
         p(
             _,
-            or(o.ilasmlyn, o.clrlyn, o.iflyn, o.setvarlyn, o.defvarlyn).scb(
-                r => r.data.val,
-            ),
+            or(
+                o.ilasmlyn,
+                o.clrlyn,
+                o.iflyn,
+                o.looplyn,
+                o.breaklyn,
+                o.continuelyn,
+                o.setvarlyn,
+                o.defvarlyn,
+            ).scb(r => r.data.val),
             _,
         ).scb(r => r[1].val),
     ).scb(r => r.map(q => q.val)),
@@ -483,6 +493,28 @@ l.set(
         condition: r[4].val as any,
         condright: r[6].val,
         code: (r[9].val as any) as Ast[],
+        pos,
+    })),
+);
+l.set(
+    "looplyn",
+    p("loop", /*lockin*/ _, "{", o.code, "}").scb((r, pos) => ({
+        ast: "loop",
+        code: (r[3].val as any) as Ast[],
+        pos,
+    })),
+);
+l.set(
+    "breaklyn",
+    p("break", /*lockin*/ _, ";").scb((r, pos) => ({
+        ast: "break",
+        pos,
+    })),
+);
+l.set(
+    "continuelyn",
+    p("continue", /*lockin*/ _, ";").scb((r, pos) => ({
+        ast: "continue",
         pos,
     })),
 );

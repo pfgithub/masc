@@ -139,12 +139,19 @@ type VarInfo = {
     type: Type;
     tempname: string;
 };
+type LoopInfo = {
+    start: string;
+    end: string;
+};
 type VNM = {
     get: (key: string) => VarInfo | undefined;
     set: (key: string, value: VarInfo) => void;
+    getLoop: () => LoopInfo | undefined;
+    setLoop(nv: LoopInfo | undefined): void;
 };
 function makeVariableNameMap(parent?: VNM): VNM {
     let map = new Map<string, VarInfo>();
+    let latestLoop: LoopInfo | undefined = undefined;
     return {
         get(key) {
             let res = map.get(key);
@@ -155,6 +162,12 @@ function makeVariableNameMap(parent?: VNM): VNM {
             if (map.get(key))
                 throw new Error("variable already defined: " + key);
             map.set(key, value);
+        },
+        getLoop() {
+            return latestLoop || (parent ? parent.getLoop() : undefined);
+        },
+        setLoop(nv) {
+            latestLoop = nv;
         },
     };
 }
@@ -218,10 +231,30 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             } else {
                 asun(line.condition);
             }
-            let rescode: string[] = mipsgen(line.code, vnm); // TODO pass in variables
+            let rescode = mipsgen(line.code, vnm); // TODO pass in variables
             code.push(...rescode.map(l => "    " + l));
-            code.push("# todo code");
             code.push(lbl + ":");
+        } else if (line.ast === "loop") {
+            let startLabel = genlabel();
+            let endLabel = genlabel();
+
+            let vctx = makeVariableNameMap(vnm);
+            vctx.setLoop({ start: startLabel, end: endLabel });
+            let rescode = mipsgen(line.code, vctx);
+
+            code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
+            code.push(startLabel + ":");
+            code.push(...rescode.map(l => "    " + l));
+            code.push("%%{{controlflow_goto::" + startLabel + "}}%%");
+            code.push(endLabel + ":");
+        } else if (line.ast === "continue") {
+            let lp = vnm.getLoop();
+            if (!lp) throw new Error("continue not in loop");
+            code.push("j " + lp.start);
+        } else if (line.ast === "break") {
+            let lp = vnm.getLoop();
+            if (!lp) throw new Error("break not in loop");
+            code.push("j " + lp.end);
         } else {
             asun(line);
         }
@@ -254,16 +287,42 @@ function finalize(rawIR: string[]): string {
     // the difficult part is going to be finding lifetimes for loop things
 
     let registerNameMap: { [key: string]: string } = {};
-    let solveVariable = (variableID: string, startIndex: number) => {
-        let unavailableRegisters = new Set<string>([]);
+    let controlFlowMarks: { [key: string]: number | undefined } = {};
+    rawIR.forEach((line, i) => {
+        let cfMarkMatch = /%%{{controlflow_mark::(.+?)}}%%/.exec(line);
+        if (cfMarkMatch) {
+            controlFlowMarks[cfMarkMatch[1]] = i;
+        }
+    });
+    let solveVariableInternal = (
+        variableID: string,
+        startIndex: number,
+        endIndexExclusive: number,
+        unavailableRegisters: Set<string>,
+        visitedMarks: { [key: string]: true },
+    ) => {
         let unavRegisIfReferenced = new Set<string>();
-        for (let j = startIndex; j < rawIR.length; j++) {
+        for (let j = startIndex; j < endIndexExclusive; j++) {
             let line = rawIR[j];
             // if line contains drop, add all listed registers to unavailable
             let clearMarkMatch = /%%:MARK_CLEAR:(.+?):%%/.exec(line);
             if (clearMarkMatch) {
                 let clrs = clearMarkMatch[1].split(",");
                 clrs.forEach(clr => unavRegisIfReferenced.add(clr));
+                continue;
+            }
+            let cfRevisitMatch = /%%{{controlflow_goto::(.+?)}}%%/.exec(line);
+            if (cfRevisitMatch) {
+                if (visitedMarks[cfRevisitMatch[1]]) continue;
+                visitedMarks[cfRevisitMatch[1]] = true;
+                let revisitStart = controlFlowMarks[cfRevisitMatch[1]]!;
+                solveVariableInternal(
+                    variableID,
+                    revisitStart,
+                    j,
+                    unavailableRegisters,
+                    visitedMarks,
+                );
                 continue;
             }
             // if line contains this variable, move updated to unavailable
@@ -302,6 +361,17 @@ function finalize(rawIR: string[]): string {
             regs.map(reg => unavailableRegisters.add(reg));
             outRegs.map(reg => unavRegisIfReferenced.add(reg));
         }
+    };
+    let solveVariable = (variableID: string, startIndex: number) => {
+        let unavailableRegisters = new Set<string>([]);
+        let visitedMarks: { [key: string]: true } = {};
+        solveVariableInternal(
+            variableID,
+            startIndex,
+            rawIR.length,
+            unavailableRegisters,
+            visitedMarks,
+        );
         return unavailableRegisters;
     };
     let registersOnlyIR: string[] = [];
@@ -323,7 +393,7 @@ function finalize(rawIR: string[]): string {
         .map(line =>
             line.replace(/%%:(?:out\:)?register:(..):%%/g, (_, q) => "$" + q),
         )
-        .filter(l => !l.trim().startsWith("%%:MARK_CLEAR"));
+        .filter(l => !l.trim().startsWith("%%"));
 
     //
 
