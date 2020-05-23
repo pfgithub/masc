@@ -213,7 +213,21 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             // I didn't want to because it would require setting up a
             //    parser though and I've already done that twice and
             //    am working on a third
+
             let lbl = genlabel();
+            let requiresCode = true;
+
+            let rescode = mipsgen(line.code, vnm); // TODO pass in variables
+            if (rescode.length === 1 && rescode[0].trim().startsWith("j ")) {
+                let jumpinstr = rescode[0]
+                    .trim()
+                    .split(" ")
+                    .slice(1)
+                    .join(" ");
+                lbl = jumpinstr;
+                requiresCode = false;
+            }
+
             if (line.condition === "==") {
                 if (right.reg === "0") code.push(`bnez ${left.reg}, ${lbl}`);
                 else code.push(`bne ${left.reg} ${right.reg}, ${lbl}`);
@@ -231,9 +245,10 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             } else {
                 asun(line.condition);
             }
-            let rescode = mipsgen(line.code, vnm); // TODO pass in variables
-            code.push(...rescode.map(l => "    " + l));
-            code.push(lbl + ":");
+            if (requiresCode) {
+                code.push(...rescode.map(l => "    " + l));
+                code.push(lbl + ":");
+            }
         } else if (line.ast === "loop") {
             let startLabel = genlabel();
             let endLabel = genlabel();
