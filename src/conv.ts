@@ -232,7 +232,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                     .trim()
                     .split(" ")
                     .slice(1)
-                    .join(" ");
+                    .join(" ")
+                    .split(commentSeparator)[0];
                 lbl = jumpinstr;
                 requiresCode = false;
             }
@@ -266,8 +267,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             vctx.setLoop({ start: startLabel, end: endLabel });
             let rescode = mipsgen(line.code, vctx);
 
-            code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
             code.push(startLabel + ":");
+            code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
             code.push(...rescode.map(l => "    " + l));
             code.push("%%{{controlflow_goto::" + startLabel + "}}%%");
             code.push(endLabel + ":");
