@@ -1,7 +1,10 @@
 import * as fs from "fs";
 import { parse, Ast, AstType, AstExpr } from "./build";
 
-const inputCode = fs.readFileSync("src/helloworld.masc", "utf-8");
+const inputCode = fs
+    .readFileSync("src/helloworld.masc", "utf-8")
+    .split("\t")
+    .join("    ");
 const baseast = parse(inputCode) as Ast[];
 
 let asun = (v: never): never => {
@@ -176,6 +179,9 @@ function makeVariableNameMap(parent?: VNM): VNM {
 }
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
+    // find all unordered declarations (eg functions)
+    // init their types and stuff
+
     let finalResultCode: string[] = [];
     let vnm: VNM = makeVariableNameMap(parentVNM);
     for (let line of ast) {
@@ -276,9 +282,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         } else {
             asun(line);
         }
-        let srccode = inputCode
-            .substring(line.pos.start.index, line.pos.end.index)
-            .split("\n");
+        let spaceCount = 0;
+        for (let i = line.pos.start.index - 1; true; i--) {
+            if (i < 0 || inputCode[i] === "\n") break;
+            spaceCount++;
+        }
+        let srccode = (
+            " ".repeat(spaceCount) +
+            inputCode.substring(line.pos.start.index, line.pos.end.index)
+        ).split("\n");
         code.forEach((lne, i) => {
             // distribute source code over these lines evenly
             if (lne.includes(commentSeparator)) finalResultCode.push(lne);

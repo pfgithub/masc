@@ -73,5 +73,3 @@ if z == 8 {
 }
 
 expct_s0 = expct_s0 + 3;
-
-\\# loops will have some implications for register selection, so TODO.
