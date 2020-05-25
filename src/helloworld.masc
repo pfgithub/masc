@@ -64,8 +64,7 @@ var y: u32 = 10;
 
 $v0 = 36;
 $a0 = x;
-\syscall
-!clear $call;
+syscall();
 
 var z: u32 = 8;
 y = y + 1;
@@ -78,8 +77,7 @@ if z == 8 {
     
     $v0 = 4;
     \la $a0, helloworldtxt
-    \syscall
-    !clear $call;
+	syscall();
     
     expct_s1 = expct_s1 + 1;
 }
