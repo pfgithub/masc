@@ -323,7 +323,10 @@ let logcb = (r: any) => (console.log(JSON.stringify(r, null, " ")), r);
 type P = { pos: Pos };
 
 // types are seperate from values here because.
-export type AstType = P & { tex: "builtin"; kind: "u32" | "i32" | "any" };
+export type AstType = P & {
+    tex: "builtin";
+    kind: "u32" | "i32" | "any" | "void";
+};
 
 export type AstVar =
     | (P & { expr: "variable"; var: string })
@@ -333,7 +336,10 @@ export type AstExpr =
     | AstVar
     | (P & { expr: "immediate"; value: string })
     | (P & { expr: "add"; left: AstExpr; right: AstExpr })
+    | (P & { expr: "call"; name: string; args: AstExpr[] })
     | (P & { expr: "undefined" });
+
+export type AstArg = P & { arg: "arg"; name: string; type: AstType };
 
 export type Ast =
     | (P & { ast: "ilasm"; ilasm: string })
@@ -349,10 +355,34 @@ export type Ast =
       })
     | (P & { ast: "loop"; code: Ast[] })
     | (P & { ast: "break" })
-    | (P & { ast: "continue" });
+    | (P & { ast: "continue" })
+    | (P & {
+          ast: "fn";
+          name: string;
+          inline: boolean;
+          args: AstArg[];
+          body: Ast[];
+          type: AstType;
+      })
+    | (P & { ast: "expr"; expr: AstExpr });
 
-type EventualResult = Ast | Ast[] | AstExpr | AstType | string;
-type EventualResultAnd = Ast & AstType & AstVar & AstExpr & string;
+type EventualResult =
+    | Ast
+    | Ast[]
+    | AstExpr
+    | AstType
+    | AstArg
+    | AstExpr[]
+    | ((a: AstExpr) => AstExpr)
+    | string;
+type EventualResultAnd = Ast &
+    AstType &
+    AstVar &
+    AstExpr &
+    AstArg &
+    AstExpr[] &
+    ((a: AstExpr) => AstExpr) &
+    string;
 
 //
 
@@ -433,6 +463,7 @@ let mkdefvar = (
 
 //
 
+// add support for @""?
 l.set(
     "identifier",
     regex(/^[a-zA-Z_\x7f-\uffff][a-zA-Z0-9_\x7f-\uffff]*/).scb(r => r[0]),
@@ -452,6 +483,8 @@ l.set(
                 o.looplyn,
                 o.breaklyn,
                 o.continuelyn,
+                o.fnlyn,
+                o.calllyn,
                 o.setvarlyn,
                 o.defvarlyn,
             ).scb(r => r.data.val),
@@ -493,6 +526,48 @@ l.set(
         condition: r[4].val as any,
         condright: r[6].val,
         code: (r[9].val as any) as Ast[],
+        pos,
+    })),
+);
+l.set(
+    "fnlynarg",
+    p(o.identifier, _, ":", _, o.type).scb((r, pos) => ({
+        arg: "arg",
+        name: r[0].val,
+        type: r[4].val,
+        pos: pos,
+    })),
+);
+l.set(
+    "fnlyn",
+    p(
+        "inline",
+        _, // req(_)
+        "fn",
+        _, // req(_)
+        o.identifier,
+        _,
+        "(",
+        _,
+        star(p(o.fnlynarg, _, ",", _).scb(r => r[0].val)).scb(r =>
+            r.map(q => q.val),
+        ),
+        optional(o.fnlynarg),
+        _,
+        ")",
+        _,
+        o.type,
+        _,
+        "{",
+        o.code,
+        "}",
+    ).scb((r: any, pos) => ({
+        ast: "fn",
+        name: r[4].val,
+        inline: true,
+        args: r[9].val ? [...r[8].val, r[9].val.item] : r[8].val,
+        body: r[16].val,
+        type: r[13].val,
         pos,
     })),
 );
@@ -561,7 +636,7 @@ l.set(
 // no conflicts with variable names because types are not values (same way typescript prevents this issue)
 l.set(
     "type",
-    or("u32", "i32", "any").scb((r, pos) => mktype(r.data.val, pos)),
+    or("u32", "i32", "any", "void").scb((r, pos) => mktype(r.data.val, pos)),
 );
 
 l.set(
@@ -584,14 +659,69 @@ l.set(
     }),
 );
 
+// a.b().c() doesn't exist, so this
+// is just identifier(args,)
+l.set(
+    "callexpr",
+    p(
+        o.identifier,
+        _,
+        "(",
+        _,
+        star(p(o.expr, _, ",", _).scb(q => q[0].val)).scb(q =>
+            q.map(m => m.val),
+        ),
+        optional(o.expr),
+        _,
+        ")",
+    ).scb(
+        (r: any, pos): AstExpr => ({
+            expr: "call",
+            name: r[0].val,
+            args: r[5].val ? [...r[4].val, r[5].val.item] : r[4].val,
+            pos,
+        }),
+    ),
+);
+l.set(
+    "calllyn",
+    p(o.callexpr, _, ";").scb((r, pos) => ({
+        ast: "expr",
+        expr: r[0].val,
+        pos,
+    })),
+);
+
+/*
+l.set(
+    "callsuffix",
+    p(
+        "(",
+        _,
+        star(p(o.expr, _, ",", _).scb(q => q[0].val)).scb(q =>
+            q.map(m => m.val),
+        ),
+        ")",
+    ).scb(m => (q: AstExpr): AstExpr => ({
+        expr: "call",
+        method: q,
+        args: m[2].val,
+    })),
+);
+
+l.set("suffixexpr", p(o.noopexpr, _, star(p(o.callsuffix, _))));
+*/
+
 l.set(
     "noopexpr",
-    or(o.vorexpr, o.undefinedexpr, o.immediateexpr).scb(r => r.data.val),
+    or(o.callexpr, o.vorexpr, o.undefinedexpr, o.immediateexpr).scb(
+        r => r.data.val,
+    ),
 );
 
 l.set(
     "undefinedexpr",
-    c("!undefined").scb((_, pos): AstExpr => ({ expr: "undefined", pos })),
+    c("undefined").scb((_, pos): AstExpr => ({ expr: "undefined", pos })),
 );
 l.set(
     "immediateexpr",

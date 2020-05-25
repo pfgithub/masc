@@ -26,7 +26,7 @@ function genlabel(name: string): string {
     return name + "_0";
 }
 
-type Type = "u32" | "i32" | "any";
+type Type = "u32" | "i32" | "any" | "void";
 
 // because prettier doesn't know how to format code sensibly:
 // (zig fmt has no problem with this)
@@ -137,6 +137,10 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
         return resType;
     } else if (expr.expr === "undefined") {
         return "any";
+    } else if (expr.expr === "call") {
+        let ce = vnm.getfn(expr.name);
+        if (!ce) throw new Error("unknown fn " + expr.name);
+        return ce(expr.args, lines);
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -149,7 +153,10 @@ type LoopInfo = {
     start: string;
     end: string;
 };
+type FnHndlr = (args: AstExpr[], res: string[]) => Type;
 type VNM = {
+    getfn: (key: string) => FnHndlr | undefined;
+    setfn(key: string, hndlr: FnHndlr): void;
     get: (key: string) => VarInfo | undefined;
     set: (key: string, value: VarInfo) => void;
     getLoop: () => LoopInfo | undefined;
@@ -157,8 +164,17 @@ type VNM = {
 };
 function makeVariableNameMap(parent?: VNM): VNM {
     let map = new Map<string, VarInfo>();
+    let fns = new Map<string, (args: AstExpr[], res: string[]) => Type>();
     let latestLoop: LoopInfo | undefined = undefined;
     return {
+        getfn(name) {
+            return fns.get(name) || (parent ? parent.getfn(name) : undefined);
+        },
+        setfn(name, value) {
+            // should there be a no shadowing rule?
+            if (fns.has(name)) throw new Error("fn already defined: " + name);
+            fns.set(name, value);
+        },
         get(key) {
             let res = map.get(key);
             if (!res && parent) return parent.get(key);
@@ -184,6 +200,49 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
 
     let finalResultCode: string[] = [];
     let vnm: VNM = makeVariableNameMap(parentVNM);
+
+    // note, this is only for predeclaring. any actual code insertion
+    // should happen below so it stays in-order
+    for (const line of ast) {
+        if (line.ast === "fn") {
+            if (!line.inline) throw new Error("inline only atm");
+            let type = evalType(line.type);
+            let expctArgs = line.args.map(arg => ({
+                typ: evalType(arg.type),
+                name: arg.name,
+            }));
+            let returnMark = genlabel(line.name + "_return");
+            vnm.setfn(line.name, (args, reslines) => {
+                // might have to define a label and say where return
+                // should go here so if the inline fn has a return
+                // instr, it jumps to the right place instead of
+                // jring nowhere. also make sure to provide the
+                // type so the return instr can typecheck the thing
+                // it is passed.
+                let nvnm = makeVariableNameMap(vnm);
+                if (args.length !== expctArgs.length)
+                    throw new Error("wrong arg count");
+                expctArgs.forEach((expctArg, i) => {
+                    let arg = args[i];
+                    let resvar = gentemp();
+                    let typ = evalExpr(vnm, arg, resvar, reslines);
+                    matchTypes(typ, expctArg.typ);
+                    nvnm.set(expctArg.name, {
+                        type: expctArg.typ,
+                        tempname: resvar,
+                    });
+                });
+                reslines.push(
+                    ...mipsgen(line.body, nvnm).map(
+                        l => l.split(commentSeparator)[0],
+                    ),
+                );
+                // reslines.push(returnMark + ":"); // todo remove unused labels
+                return type;
+            });
+        }
+    }
+
     for (let line of ast) {
         let code: string[] = [];
         if (line.ast === "ilasm") {
@@ -280,6 +339,14 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("break not in loop");
             code.push("j " + lp.end);
+        } else if (line.ast === "fn") {
+            if (!line.inline)
+                throw new Error(
+                    "non inline fns are not supported to insert code yet",
+                );
+        } else if (line.ast === "expr") {
+            let res = evalExprAnyOut(vnm, line.expr, code);
+            if (res.typ !== "void") throw new Error("unused value " + res.typ);
         } else {
             asun(line);
         }

@@ -2,6 +2,18 @@
 \    helloworldtxt: .asciiz "Hello, World!"
 \.text
 \
+print_int(25);
+\
+inline fn syscall() void {
+	\syscall
+	!clear $call;
+}
+inline fn print_int(value: u32) void {
+	$v0 = 36;
+	$a0 = value;
+	syscall();
+}
+\
 var index: u32 = 5;
 loop {
 	index = index + 1;
