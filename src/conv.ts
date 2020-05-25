@@ -249,11 +249,11 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             code.push(line.ilasm + commentSeparator);
         } else if (line.ast === "clear") {
             code.push(
-                "%%:MARK_CLEAR:" +
+                "%%{{MARK_CLEAR:" +
                     line.registers
                         .flatMap(r => regExpansions[r] || [r])
                         .join(",") +
-                    ":%%",
+                    "}}%%",
             );
         } else if (line.ast === "defvar") {
             if (vnm.get(line.name)) {
@@ -330,7 +330,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
             code.push(...rescode.map(l => "    " + l));
             code.push("%%{{controlflow_goto::" + startLabel + "}}%%");
-            code.push(endLabel + ":");
+            code.push(endLabel + ":" + commentSeparator);
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("continue not in loop");
@@ -362,9 +362,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         code.forEach((lne, i) => {
             // distribute source code over these lines evenly
             if (lne.includes(commentSeparator)) finalResultCode.push(lne);
-            else
-                finalResultCode.push(lne + commentSeparator + srccode[i] || "");
+            else {
+                let codeText = srccode[i] || "";
+                finalResultCode.push(lne + commentSeparator + codeText);
+            }
         });
+        // if (code.length > 0)
+        //     for (let i = code.length; i < srccode.length; i++) {
+        //         finalResultCode.push("" + commentSeparator + srccode[i]);
+        //     }
     }
     return finalResultCode;
 }
@@ -403,7 +409,7 @@ function finalize(rawIR: string[]): string {
         for (let j = startIndex; j < endIndexExclusive; j++) {
             let line = rawIR[j];
             // if line contains drop, add all listed registers to unavailable
-            let clearMarkMatch = /%%:MARK_CLEAR:(.+?):%%/.exec(line);
+            let clearMarkMatch = /%%{{MARK_CLEAR:(.+?)}}%%/.exec(line);
             if (clearMarkMatch) {
                 let clrs = clearMarkMatch[1].split(",");
                 clrs.forEach(clr => unavRegisIfReferenced.add(clr));
@@ -491,7 +497,7 @@ function finalize(rawIR: string[]): string {
         .map(line =>
             line.replace(/%%:(?:out\:)?register:(..):%%/g, (_, q) => "$" + q),
         )
-        .filter(l => !l.trim().startsWith("%%"));
+        .filter(l => !l.trim().startsWith("%%{{"));
 
     //
 
