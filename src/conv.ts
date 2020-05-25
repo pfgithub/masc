@@ -359,12 +359,17 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             " ".repeat(spaceCount) +
             inputCode.substring(line.pos.start.index, line.pos.end.index)
         ).split("\n");
-        code.forEach((lne, i) => {
+        let skipcomments = false;
+        code.some((lne, i) => {
             // distribute source code over these lines evenly
-            if (lne.includes(commentSeparator)) finalResultCode.push(lne);
-            else {
+            if (lne.includes(commentSeparator)) {
+                finalResultCode.push(lne);
+                skipcomments = true; // do not continue past a preset comment seperator
+            } else {
                 let codeText = srccode[i] || "";
-                finalResultCode.push(lne + commentSeparator + codeText);
+                finalResultCode.push(
+                    lne + commentSeparator + (skipcomments ? "" : codeText),
+                );
             }
         });
         // if (code.length > 0)
