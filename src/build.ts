@@ -341,6 +341,15 @@ export type AstExpr =
 
 export type AstArg = P & { arg: "arg"; name: string; type: AstType };
 
+export type FnAst = P & {
+    ast: "fn";
+    name: string;
+    inline: boolean;
+    args: AstArg[];
+    body: Ast[];
+    type: AstType;
+};
+
 export type Ast =
     | (P & { ast: "ilasm"; ilasm: string })
     | (P & { ast: "clear"; registers: string[] })
@@ -356,14 +365,7 @@ export type Ast =
     | (P & { ast: "loop"; code: Ast[] })
     | (P & { ast: "break" })
     | (P & { ast: "continue" })
-    | (P & {
-          ast: "fn";
-          name: string;
-          inline: boolean;
-          args: AstArg[];
-          body: Ast[];
-          type: AstType;
-      })
+    | FnAst
     | (P & { ast: "expr"; expr: AstExpr });
 
 type EventualResult =
@@ -541,7 +543,7 @@ l.set(
 l.set(
     "fnlyn",
     p(
-        "inline",
+        optional("inline"),
         _, // req(_)
         "fn",
         _, // req(_)
@@ -564,7 +566,7 @@ l.set(
     ).scb((r: any, pos) => ({
         ast: "fn",
         name: r[4].val,
-        inline: true,
+        inline: !!r[0].val,
         args: r[9].val ? [...r[8].val, r[9].val.item] : r[8].val,
         body: r[16].val,
         type: r[13].val,

@@ -14,6 +14,18 @@ inline fn print_int(value: u32) void {
 	syscall();
 }
 
+fn normal_fn(value: u32) void {
+	var temp: u32 = 5;
+	var saved: u32 = 6;
+	print_int(value);
+	saved = saved + 1;
+}
+
+var should_save: u32 = 25;
+normal_fn(25);
+normal_fn(34);
+should_save = should_save + 1;
+
 var index: u32 = 5;
 loop {
 	index = index + 1;

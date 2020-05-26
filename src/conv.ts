@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { parse, Ast, AstType, AstExpr } from "./build";
+import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
 const inputCode = fs
     .readFileSync("src/helloworld.masc", "utf-8")
@@ -140,7 +140,7 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
-        return ce(expr.args, lines);
+        return ce.call(expr.args, lines);
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -153,10 +153,18 @@ type LoopInfo = {
     start: string;
     end: string;
 };
-type FnHndlr = (args: AstExpr[], res: string[]) => Type;
+type FnInfo = {
+    call(args: AstExpr[], res: string[]): Type;
+    real?: {
+        startLabel: string;
+    };
+};
+type FnReturnInfo = {
+    return(value: AstExpr): void;
+};
 type VNM = {
-    getfn: (key: string) => FnHndlr | undefined;
-    setfn(key: string, hndlr: FnHndlr): void;
+    getfn: (key: string) => FnInfo | undefined;
+    setfn(key: string, hndlr: FnInfo): void;
     get: (key: string) => VarInfo | undefined;
     set: (key: string, value: VarInfo) => void;
     getLoop: () => LoopInfo | undefined;
@@ -164,14 +172,15 @@ type VNM = {
 };
 function makeVariableNameMap(parent?: VNM): VNM {
     let map = new Map<string, VarInfo>();
-    let fns = new Map<string, (args: AstExpr[], res: string[]) => Type>();
+    let fns = new Map<string, FnInfo>();
     let latestLoop: LoopInfo | undefined = undefined;
+    let latestFn: FnReturnInfo | undefined = undefined;
     return {
         getfn(name) {
             return fns.get(name) || (parent ? parent.getfn(name) : undefined);
         },
         setfn(name, value) {
-            // should there be a no shadowing rule?
+            // should there be a no shadowing rule also?
             if (fns.has(name)) throw new Error("fn already defined: " + name);
             fns.set(name, value);
         },
@@ -194,6 +203,85 @@ function makeVariableNameMap(parent?: VNM): VNM {
     };
 }
 
+function createInlineFn(line: FnAst, vnm: VNM) {
+    let type = evalType(line.type);
+    let expctArgs = line.args.map(arg => ({
+        typ: evalType(arg.type),
+        name: arg.name,
+    }));
+    // let returnMark = genlabel(line.name + "_return");
+    vnm.setfn(line.name, {
+        call: (args, reslines) => {
+            // might have to define a label and say where return
+            // should go here so if the inline fn has a return
+            // instr, it jumps to the right place instead of
+            // jring nowhere. also make sure to provide the
+            // type so the return instr can typecheck the thing
+            // it is passed.
+            let nvnm = makeVariableNameMap(vnm);
+            if (args.length !== expctArgs.length)
+                throw new Error("wrong arg count");
+            expctArgs.forEach((expctArg, i) => {
+                let arg = args[i];
+                let resvar = gentemp();
+                let typ = evalExpr(vnm, arg, resvar, reslines);
+                matchTypes(typ, expctArg.typ);
+                nvnm.set(expctArg.name, {
+                    type: expctArg.typ,
+                    tempname: resvar,
+                });
+            });
+            reslines.push(
+                ...mipsgen(line.body, nvnm).map(
+                    l => l.split(commentSeparator)[0],
+                ),
+            );
+            // reslines.push(returnMark + ":"); // todo remove unused labels
+            return type;
+        },
+    });
+}
+
+function createNormalFn(line: FnAst, vnm: VNM) {
+    // create a normal fn
+    let returnType = evalType(line.type);
+    let expctArgs = line.args.map(arg => ({
+        typ: evalType(arg.type),
+        name: arg.name,
+    }));
+    let startLabelName = genlabel(line.name + "_call");
+    vnm.setfn(line.name, {
+        call: (args, reslines) => {
+            if (args.length !== expctArgs.length)
+                throw new Error("wrong arg count");
+
+            let argNames = ["a0", "a1", "a2", "a3"];
+            expctArgs.forEach((expctArg, i) => {
+                let arg = args[i];
+                let resvar = gentemp();
+                let typ = evalExpr(vnm, arg, resvar, reslines);
+                matchTypes(typ, expctArg.typ);
+                // $argnames[i] = eval(arg);
+                // evalExpr could be named better to make it clear that
+                // it outputs into a register
+                evalExpr(vnm, arg, genreg(argNames[i]), reslines);
+            });
+            reslines.push("jal " + startLabelName);
+            reslines.push(
+                "%%{{MARK_CLEAR:" + regExpansions.call.join(",") + "}}%%",
+            );
+            // result would be in $t0, $t1 if returning was supported;
+            return returnType;
+        },
+        real: {
+            startLabel: startLabelName,
+        },
+    });
+}
+// insertNormalFnBody
+// note that when inserting a fn body, code must be register allocated before insertion. we need to know all the registers, so we need to keep mair register markers, remember them, and make sure the actual returned code doesn't have any mair markers
+// also, fn bodies should not have access to outside variables (their vnm should have all the compiletime values but no runtime values. maybe add an extra continueRuntimeValues option in vnm that disables parent checking for variables?)
+
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     // find all unordered declarations (eg functions)
     // init their types and stuff
@@ -205,41 +293,11 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     // should happen below so it stays in-order
     for (const line of ast) {
         if (line.ast === "fn") {
-            if (!line.inline) throw new Error("inline only atm");
-            let type = evalType(line.type);
-            let expctArgs = line.args.map(arg => ({
-                typ: evalType(arg.type),
-                name: arg.name,
-            }));
-            let returnMark = genlabel(line.name + "_return");
-            vnm.setfn(line.name, (args, reslines) => {
-                // might have to define a label and say where return
-                // should go here so if the inline fn has a return
-                // instr, it jumps to the right place instead of
-                // jring nowhere. also make sure to provide the
-                // type so the return instr can typecheck the thing
-                // it is passed.
-                let nvnm = makeVariableNameMap(vnm);
-                if (args.length !== expctArgs.length)
-                    throw new Error("wrong arg count");
-                expctArgs.forEach((expctArg, i) => {
-                    let arg = args[i];
-                    let resvar = gentemp();
-                    let typ = evalExpr(vnm, arg, resvar, reslines);
-                    matchTypes(typ, expctArg.typ);
-                    nvnm.set(expctArg.name, {
-                        type: expctArg.typ,
-                        tempname: resvar,
-                    });
-                });
-                reslines.push(
-                    ...mipsgen(line.body, nvnm).map(
-                        l => l.split(commentSeparator)[0],
-                    ),
-                );
-                // reslines.push(returnMark + ":"); // todo remove unused labels
-                return type;
-            });
+            if (line.inline) {
+                createInlineFn(line, vnm);
+            } else {
+                createNormalFn(line, vnm);
+            }
         }
     }
 
