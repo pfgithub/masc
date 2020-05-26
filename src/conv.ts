@@ -47,6 +47,8 @@ let userRegisters: string[] = [
     "v0", "v1"
 ];
 
+let matchIRRegisters = /%%:(?:out\:)?register:(..):%%/g;
+
 function evalType(tast: AstType): Type {
     return tast.kind;
 }
@@ -140,7 +142,7 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
-        return ce.call(expr.args, lines);
+        return ce.call(expr.args, vnm, lines);
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -154,10 +156,8 @@ type LoopInfo = {
     end: string;
 };
 type FnInfo = {
-    call(args: AstExpr[], res: string[]): Type;
-    real?: {
-        startLabel: string;
-    };
+    call(args: AstExpr[], argvnm: VNM, res: string[]): Type;
+    real?: RealFnInfo;
 };
 type FnReturnInfo = {
     return(value: AstExpr): void;
@@ -170,7 +170,8 @@ type VNM = {
     getLoop: () => LoopInfo | undefined;
     setLoop(nv: LoopInfo | undefined): void;
 };
-function makeVariableNameMap(parent?: VNM): VNM {
+function makeVariableNameMap(parent?: VNM, rtPrntAcss: boolean = true): VNM {
+    let rta = rtPrntAcss;
     let map = new Map<string, VarInfo>();
     let fns = new Map<string, FnInfo>();
     let latestLoop: LoopInfo | undefined = undefined;
@@ -186,7 +187,7 @@ function makeVariableNameMap(parent?: VNM): VNM {
         },
         get(key) {
             let res = map.get(key);
-            if (!res && parent) return parent.get(key);
+            if (!res && parent && rta) return parent.get(key);
             return res;
         },
         set(key, value) {
@@ -195,7 +196,7 @@ function makeVariableNameMap(parent?: VNM): VNM {
             map.set(key, value);
         },
         getLoop() {
-            return latestLoop || (parent ? parent.getLoop() : undefined);
+            return latestLoop || (parent && rta ? parent.getLoop() : undefined);
         },
         setLoop(nv) {
             latestLoop = nv;
@@ -203,15 +204,15 @@ function makeVariableNameMap(parent?: VNM): VNM {
     };
 }
 
-function createInlineFn(line: FnAst, vnm: VNM) {
-    let type = evalType(line.type);
-    let expctArgs = line.args.map(arg => ({
+function createInlineFn(fn: FnAst, vnm: VNM) {
+    let type = evalType(fn.type);
+    let expctArgs = fn.args.map(arg => ({
         typ: evalType(arg.type),
         name: arg.name,
     }));
     // let returnMark = genlabel(line.name + "_return");
-    vnm.setfn(line.name, {
-        call: (args, reslines) => {
+    vnm.setfn(fn.name, {
+        call: (args, argvnm, reslines) => {
             // might have to define a label and say where return
             // should go here so if the inline fn has a return
             // instr, it jumps to the right place instead of
@@ -224,7 +225,7 @@ function createInlineFn(line: FnAst, vnm: VNM) {
             expctArgs.forEach((expctArg, i) => {
                 let arg = args[i];
                 let resvar = gentemp();
-                let typ = evalExpr(vnm, arg, resvar, reslines);
+                let typ = evalExpr(argvnm, arg, resvar, reslines);
                 matchTypes(typ, expctArg.typ);
                 nvnm.set(expctArg.name, {
                     type: expctArg.typ,
@@ -232,7 +233,7 @@ function createInlineFn(line: FnAst, vnm: VNM) {
                 });
             });
             reslines.push(
-                ...mipsgen(line.body, nvnm).map(
+                ...mipsgen(fn.body, nvnm).map(
                     l => l.split(commentSeparator)[0],
                 ),
             );
@@ -242,29 +243,27 @@ function createInlineFn(line: FnAst, vnm: VNM) {
     });
 }
 
-function createNormalFn(line: FnAst, vnm: VNM) {
+let argNames = ["a0", "a1", "a2", "a3"];
+
+function createNormalFn(fn: FnAst, vnm: VNM) {
     // create a normal fn
-    let returnType = evalType(line.type);
-    let expctArgs = line.args.map(arg => ({
+    let returnType = evalType(fn.type);
+    let expctArgs = fn.args.map(arg => ({
         typ: evalType(arg.type),
         name: arg.name,
     }));
-    let startLabelName = genlabel(line.name + "_call");
-    vnm.setfn(line.name, {
-        call: (args, reslines) => {
+    let startLabelName = genlabel(fn.name + "_call");
+    vnm.setfn(fn.name, {
+        call: (args, argvnm, reslines) => {
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
 
-            let argNames = ["a0", "a1", "a2", "a3"];
             expctArgs.forEach((expctArg, i) => {
                 let arg = args[i];
-                let resvar = gentemp();
-                let typ = evalExpr(vnm, arg, resvar, reslines);
-                matchTypes(typ, expctArg.typ);
-                // $argnames[i] = eval(arg);
                 // evalExpr could be named better to make it clear that
                 // it outputs into a register
-                evalExpr(vnm, arg, genreg(argNames[i]), reslines);
+                let typ = evalExpr(argvnm, arg, genreg(argNames[i]), reslines);
+                matchTypes(typ, expctArg.typ);
             });
             reslines.push("jal " + startLabelName);
             reslines.push(
@@ -275,12 +274,96 @@ function createNormalFn(line: FnAst, vnm: VNM) {
         },
         real: {
             startLabel: startLabelName,
+            body: fn.body,
+            name: fn.name,
+            args: expctArgs,
         },
     });
 }
 // insertNormalFnBody
 // note that when inserting a fn body, code must be register allocated before insertion. we need to know all the registers, so we need to keep mair register markers, remember them, and make sure the actual returned code doesn't have any mair markers
 // also, fn bodies should not have access to outside variables (their vnm should have all the compiletime values but no runtime values. maybe add an extra continueRuntimeValues option in vnm that disables parent checking for variables?)
+type RealFnInfo = {
+    name: string;
+    startLabel: string;
+    body: Ast[];
+    args: {
+        typ: Type;
+        name: string;
+    }[];
+};
+function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
+    // make a new inner vnm that does not have access
+    // to outer scope variables/loops/fn returns but does
+    // have access
+    let ivnm = makeVariableNameMap(vnm, false);
+
+    let argsetLines: string[] = [];
+    fn.args.forEach((arg, i) => {
+        let tmpVar = gentemp();
+        evalExpr(
+            ivnm,
+            {
+                expr: "register",
+                register: argNames[i],
+                pos: "!!this should never happen!!" as any,
+            },
+            tmpVar,
+            argsetLines,
+        );
+        ivnm.set(arg.name, {
+            tempname: tmpVar,
+            type: arg.typ,
+        });
+    });
+
+    let bodyCodeAllocated = registerAllocate(mipsgen(fn.body, ivnm));
+    let referencedSVariables = new Set<string>();
+
+    for (let line of bodyCodeAllocated) {
+        for (let register of line.matchAll(matchIRRegisters)) {
+            if (register[1].startsWith("s")) {
+                referencedSVariables.add(register[1]);
+            }
+        }
+    }
+
+    let svars = [...referencedSVariables];
+
+    let bodyLines: string[] = [];
+    if (svars.length > 0) bodyLines.push("# save used s registers to stack");
+    bodyLines.push("subiu $sp, $sp, " + svars.length * 4);
+    svars.forEach((svar, i) => {
+        bodyLines.push("sw $" + svar + ", " + i * 4 + "($sp)");
+    });
+    // 2: save args into ivnm variables
+    if (fn.args.length > 0) bodyLines.push("# save args");
+    bodyLines.push(...argsetLines);
+    // 3: fn body
+    bodyLines.push("");
+    bodyLines.push("# body");
+    bodyLines.push(...compileAllocated(bodyCodeAllocated));
+    // 4: reload s variables from stack
+    bodyLines.push("");
+    if (svars.length > 0)
+        bodyLines.push("# reload used s registers from stack");
+    svars.forEach((svar, i) => {
+        bodyLines.push("lw $" + svar + ", " + i * 4 + "($sp)");
+    });
+    bodyLines.push("addiu $sp, $sp, " + svars.length * 4);
+
+    let endLabel = genlabel(fn.name + "_skip");
+    // jump over fn
+    rescode.push("j " + endLabel);
+    // start label
+    rescode.push(fn.startLabel + ":");
+    // body code
+    rescode.push(...bodyLines.map(l => "    " + l));
+    // return
+    rescode.push("jr");
+    // fn end
+    rescode.push(endLabel + ":");
+}
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     // find all unordered declarations (eg functions)
@@ -398,10 +481,10 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             if (!lp) throw new Error("break not in loop");
             code.push("j " + lp.end);
         } else if (line.ast === "fn") {
-            if (!line.inline)
-                throw new Error(
-                    "non inline fns are not supported to insert code yet",
-                );
+            let fni = vnm.getfn(line.name);
+            if (!fni)
+                throw new Error("uuh... this should never happen: " + fni);
+            if (!line.inline) insertNormalFnBody(vnm, code, fni.real!);
         } else if (line.ast === "expr") {
             let res = evalExprAnyOut(vnm, line.expr, code);
             if (res.typ !== "void") throw new Error("unused value " + res.typ);
@@ -438,21 +521,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     return finalResultCode;
 }
 
-function finalize(rawIR: string[]): string {
-    // I want this to have a concept of control flow
-    // when it goes from top to bottom deciding variables,
-    // at an if when it reaches the } it jumps to after the else
-    // (eg)
-
-    // wait no this is unnecessary
-    // if(a)
-    //   let b
-    // else
-    //   let c
-    // end
-    // will already give the same registers to b and c because b doesn't exist further on in the file
-    // the difficult part is going to be finding lifetimes for loop things
-
+function registerAllocate(rawIR: string[]): string[] {
     let registerNameMap: { [key: string]: string } = {};
     let controlFlowMarks: { [key: string]: number | undefined } = {};
     rawIR.forEach((line, i) => {
@@ -555,16 +624,15 @@ function finalize(rawIR: string[]): string {
             }),
         );
     });
-
-    let txt = registersOnlyIR
-        .map(line =>
-            line.replace(/%%:(?:out\:)?register:(..):%%/g, (_, q) => "$" + q),
-        )
+    return registersOnlyIR;
+}
+function compileAllocated(registersOnlyIR: string[]) {
+    return registersOnlyIR
+        .map(line => line.replace(matchIRRegisters, (_, q) => "$" + q))
         .filter(l => !l.trim().startsWith("%%{{"));
-
-    //
-
-    //
+}
+function finalize(rawIR: string[]): string {
+    let txt = compileAllocated(registerAllocate(rawIR));
 
     let lsplits = txt.map(l => l.split(commentSeparator));
     let maxLineLen = 12;
