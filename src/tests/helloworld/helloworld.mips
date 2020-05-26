@@ -1,0 +1,100 @@
+.data                                      # 
+    helloworldtxt: .asciiz "Hello, World!" # 
+.text                                      # 
+                                           # 
+li $t0 25                                  # print_int(25);
+li $v0 36                                  # 
+move $a0 $t0                               # 
+syscall                                    # 
+                                           # 
+j normal_fn_skip_0                         # fn normal_fn(value: u32) void {
+normal_fn_call_0:                          #     var temp: u32 = 5;
+    # save used s registers to stack       #     var saved: u32 = 6;
+    subiu $sp, $sp, 4                      #     print_int(value);
+    sw $s0, 0($sp)                         #     saved = saved + 1;
+    # save args                            # }
+    move $t0 $a0                           # 
+                                           # 
+    # body                                 # 
+    li $t0 5                               #     var temp: u32 = 5;
+    li $s0 6                               #     var saved: u32 = 6;
+    move $t0 $t1                           #     print_int(value);
+    li $v0 36                              # 
+    move $a0 $t0                           # 
+    syscall                                # 
+    addu $s0, $s0 1                        #     saved = saved + 1;
+                                           # 
+    # reload used s registers from stack   # 
+    lw $s0, 0($sp)                         # 
+    addiu $sp, $sp, 4                      # 
+jr                                         # 
+normal_fn_skip_0:                          # 
+li $s0 25                                  # var should_save: u32 = 25;
+li $a0 25                                  # normal_fn(25);
+jal normal_fn_call_0                       # 
+li $a0 34                                  # normal_fn(34);
+jal normal_fn_call_0                       # 
+addu $s0, $s0 1                            # should_save = should_save + 1;
+li $t0 5                                   # var index: u32 = 5;
+loop_continue_0:                           # loop {
+    addu $t0, $t0 1                        #     index = index + 1;
+    bleu $t0 5, loop_end_0                 #     if index > 5 { break; }
+    bleu $t0 3, loop_continue_0            #     if index > 3 { continue; }
+    li $t1 6                               #     var insideLoop: u32 = 6;
+loop_end_0:                                # 
+syscall                                    # syscall
+                                           # 
+li $t0 0                                   # var t0: u32 = 0;
+li $t1 1                                   # var t1: u32 = 1;
+li $t2 2                                   # var t2: u32 = 2;
+addu $t2, $t2 $t2                          # t2 = t2 + t2;
+addu $t1, $t1 $t1                          # t1 = t1 + t1;
+addu $t0, $t0 $t0                          # t0 = t0 + t0;
+                                           # 
+li $t0 0                                   # var t0_1: u32 = 0;
+li $t0 1                                   # var t0_2: u32 = 1;
+li $t1 2                                   # var t1_1: u32 = 2;
+addu $t0, $t0 2                            # t0_2 = t0_2 + 2;
+addu $t1, $t1 1                            # t1_1 = t1_1 + 1;
+move $t0 $t0                               # t0_1 = t0_2;
+                                           # 
+li $t0 0                                   # var t0__1: u32 = 0;
+li $t0 1                                   # var t0__2: u32 = 1;
+li $t1 2                                   # var t1__1: u32 = 2;
+addu $t0, $t0 2                            # t0__2 = t0__2 + 2;
+addu $t1, $t1 1                            # t1__1 = t1__1 + 1;
+move $t0 $t0                               # var unused: u32 = t0__2;
+li $t0 5                                   # t0__1 = 5;
+                                           # 
+                                           # 
+                                           # 
+li $t0 0                                   # var expct_t0: u32 = 0;
+li $t1 1                                   # var expct_t1: u32 = 1;
+li $t0 2                                   # var expct_t0_also: u32 = 2;
+addu $t1, $t1 1                            # expct_t1 = expct_t1 + 1;
+addu $t0, $t0 2                            # expct_t0_also = expct_t0_also + 2;
+li $t0 5                                   # $t0 = 5;
+move $t0 $t1                               # expct_t0 = expct_t1;
+li $t0 6                                   # $t0 = 6;
+move $t0 $t1                               # expct_t0 = expct_t1;
+                                           # 
+                                           # 
+                                           # 
+li $s0 5                                   # var x: u32 = 5;
+addu $s0, $s0 2                            # x = x + 2;
+li $s1 10                                  # var y: u32 = 10;
+li $v0 36                                  # $v0 = 36;
+move $a0 $s0                               # $a0 = x;
+syscall                                    # syscall();
+li $t0 8                                   # var z: u32 = 8;
+addu $s1, $s1 1                            # y = y + 1;
+addu $s0, $s0 3                            # x = x + 3;
+li $s0 8                                   # var expct_s0: u32 = 8;
+bne $t0 8, if_end_0                        # if z == 8 {
+    li $s1 5                               #     var expct_s1: u32 = 5;
+    li $v0 4                               #     $v0 = 4;
+    la $a0, helloworldtxt                  # 
+    syscall                                #     syscall();
+    addu $s1, $s1 1                        #     expct_s1 = expct_s1 + 1;
+if_end_0:                                  # 
+addu $s0, $s0 3                            # expct_s0 = expct_s0 + 3;

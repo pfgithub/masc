@@ -1,11 +1,15 @@
-import * as fs from "fs";
 import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
-const inputCode = fs
-    .readFileSync("src/helloworld.masc", "utf-8")
-    .split("\t")
-    .join("    ");
-const baseast = parse(inputCode) as Ast[];
+var inputCode: string = undefined as any; // wow this is bad
+export function compile(srcraw: string): string {
+    let src = srcraw.split("\t").join("    ");
+    inputCode = src;
+    const baseast = parse(src) as Ast[];
+    let mair = mipsgen(baseast);
+    let res = finalize(mair);
+    inputCode = new Error("uh oh") as any;
+    return res;
+}
 
 let asun = (v: never): never => {
     console.log(v);
@@ -331,8 +335,10 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     let svars = [...referencedSVariables];
 
     let bodyLines: string[] = [];
-    if (svars.length > 0) bodyLines.push("# save used s registers to stack");
-    bodyLines.push("subiu $sp, $sp, " + svars.length * 4);
+    if (svars.length > 0) {
+        bodyLines.push("# save used s registers to stack");
+        bodyLines.push("subiu $sp, $sp, " + svars.length * 4);
+    }
     svars.forEach((svar, i) => {
         bodyLines.push("sw $" + svar + ", " + i * 4 + "($sp)");
     });
@@ -649,9 +655,3 @@ function finalize(rawIR: string[]): string {
     }
     return resLines.join("\n");
 }
-
-let mair = mipsgen(baseast);
-fs.writeFileSync(__dirname + "/code.mair", mair.join("\n"), "utf-8");
-let res = finalize(mair);
-fs.writeFileSync(__dirname + "/code.mips", res, "utf-8");
-console.log(res);
