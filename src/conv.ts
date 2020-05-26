@@ -321,7 +321,15 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
         });
     });
 
-    let bodyCodeAllocated = registerAllocate(mipsgen(fn.body, ivnm));
+    let precompiledLines: string[] = [];
+
+    if (fn.args.length > 0) precompiledLines.push("# save args");
+    precompiledLines.push(...argsetLines);
+    if (fn.args.length > 0) precompiledLines.push("");
+
+    precompiledLines.push("# body");
+    precompiledLines.push(...mipsgen(fn.body, ivnm));
+    let bodyCodeAllocated = registerAllocate(precompiledLines);
     let referencedSVariables = new Set<string>();
 
     for (let line of bodyCodeAllocated) {
@@ -334,6 +342,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
 
     let svars = [...referencedSVariables];
 
+    // 1: save used s registers to stack
     let bodyLines: string[] = [];
     if (svars.length > 0) {
         bodyLines.push("# save used s registers to stack");
@@ -342,13 +351,10 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     svars.forEach((svar, i) => {
         bodyLines.push("sw $" + svar + ", " + i * 4 + "($sp)");
     });
-    // 2: save args into ivnm variables
-    if (fn.args.length > 0) bodyLines.push("# save args");
-    bodyLines.push(...argsetLines);
-    // 3: fn body
-    bodyLines.push("");
-    bodyLines.push("# body");
-    bodyLines.push(...compileAllocated(bodyCodeAllocated));
+
+    // 2-3: save args, run fn body
+    bodyLines.push(...compileAllocated(precompiledLines));
+
     // 4: reload s variables from stack
     bodyLines.push("");
     if (svars.length > 0)
@@ -366,7 +372,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     // body code
     rescode.push(...bodyLines.map(l => "    " + l));
     // return
-    rescode.push("jr");
+    rescode.push("jr $ra");
     // fn end
     rescode.push(endLabel + ":");
 }

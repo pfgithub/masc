@@ -16,18 +16,18 @@ normal_fn_call_0:                          #     var temp: u32 = 5;
     move $t0 $a0                           # 
                                            # 
     # body                                 # 
-    li $t0 5                               #     var temp: u32 = 5;
-    li $s0 6                               #     var saved: u32 = 6;
-    move $t0 $t1                           #     print_int(value);
+    li $t1 5                               #     var temp: u32 = 5;
+    li $t1 6                               #     var saved: u32 = 6;
+    move $t0 $t0                           #     print_int(value);
     li $v0 36                              # 
     move $a0 $t0                           # 
     syscall                                # 
-    addu $s0, $s0 1                        #     saved = saved + 1;
+    addu $t1, $t1 1                        #     saved = saved + 1;
                                            # 
     # reload used s registers from stack   # 
     lw $s0, 0($sp)                         # 
     addiu $sp, $sp, 4                      # 
-jr                                         # 
+jr $ra                                     # 
 normal_fn_skip_0:                          # 
 li $s0 25                                  # var should_save: u32 = 25;
 li $a0 25                                  # normal_fn(25);
