@@ -1,0 +1,5 @@
+.text           # 
+subu $sp, $sp 8 # $sp = $sp - 8;
+move $t0 $sp    # var stack_value: [*]u32 = $sp;
+lw $t1 4($t0)   # var value: u32 = stack_value[1];
+la $t0 4($t0)   # var pointer: [*]u32 = &stack_value[1];

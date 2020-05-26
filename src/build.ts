@@ -43,7 +43,7 @@ function real(user: User): Parse {
 }
 
 let debugPrint = false;
-let deepest: Point = { index: -1, line: 0, col: 0 };
+let deepest: Point;
 
 let globalLevel = 0;
 function mkprs(fn: ParseFN, tsfn: ToStringFN): Parse {
@@ -323,21 +323,28 @@ let logcb = (r: any) => (console.log(JSON.stringify(r, null, " ")), r);
 type P = { pos: Pos };
 
 // types are seperate from values here because.
-export type AstType = P & {
-    tex: "builtin";
-    kind: "u32" | "i32" | "any" | "void";
-};
+export type AstType =
+    | (P & {
+          type: "builtin";
+          kind: "u32" | "i32" | "any" | "void";
+      })
+    | (P & { type: "pointer"; child: AstType })
+    | (P & { type: "arrayptr"; child: AstType });
 
 export type AstVar =
     | (P & { expr: "variable"; var: string })
     | (P & { expr: "register"; register: string });
 
+export type BinOp = "+" | "-";
 export type AstExpr =
     | AstVar
     | (P & { expr: "immediate"; value: string })
-    | (P & { expr: "add"; left: AstExpr; right: AstExpr })
+    | (P & { expr: "op"; op: BinOp; left: AstExpr; right: AstExpr })
     | (P & { expr: "call"; name: string; args: AstExpr[] })
-    | (P & { expr: "undefined" });
+    | (P & { expr: "undefined" })
+    | (P & { expr: "arrayindex"; from: AstExpr; index: AstExpr })
+    | (P & { expr: "pointer"; from: AstExpr })
+    | (P & { expr: "addressof"; of: AstExpr });
 
 export type AstArg = P & { arg: "arg"; name: string; type: AstType };
 
@@ -414,12 +421,13 @@ let _req = _; // TODO make this require at least one character
 //
 
 let mktype = (typ: string, pos: Pos): AstType => ({
-    tex: "builtin",
+    type: "builtin",
     kind: typ as any,
     pos,
 });
-let mkadd = (a: AstExpr, b: AstExpr, pos: Pos): AstExpr => ({
-    expr: "add",
+let mkbinexpr = (chce: BinOp, a: AstExpr, b: AstExpr, pos: Pos): AstExpr => ({
+    expr: "op",
+    op: chce,
     left: a,
     right: b,
     pos,
@@ -638,7 +646,18 @@ l.set(
 // no conflicts with variable names because types are not values (same way typescript prevents this issue)
 l.set(
     "type",
-    or("u32", "i32", "any", "void").scb((r, pos) => mktype(r.data.val, pos)),
+    or(
+        or("u32", "i32", "any", "void").scb((r, pos) =>
+            mktype(r.data.val, pos),
+        ),
+
+        p("[*]", _, o.type).scb(
+            (r, pos): AstType => ({ type: "arrayptr", child: r[2].val, pos }),
+        ),
+        p("*", _, o.type).scb(
+            (r, pos): AstType => ({ type: "pointer", child: r[2].val, pos }),
+        ),
+    ).scb(r => r.data.val),
 );
 
 l.set(
@@ -649,15 +668,22 @@ l.set(
 l.set(
     "addexpr",
     p(
-        o.noopexpr,
-        star(p(_, "+", _, o.noopexpr).scb(r => r[3].val)).scb(r =>
-            r.map(q => q.val),
-        ),
+        o.prefixexpr,
+        star(
+            p(
+                _,
+                or("+", "-").scb(r => r.data.val),
+                _,
+                o.prefixexpr,
+            ).scb(r => ({ op: r[1].val, val: r[3].val } as any)),
+        ).scb(r => r.map(q => q.val)),
     ).scb((r, pos) => {
         let [one, two] = [r[0].val, r[1].val];
         if (two.length === 0) return one;
         if (two.length !== 1) throw new Error("multi-part add niy");
-        return mkadd(one, two[0] as any, pos);
+        let twoz = two[0] as any;
+
+        return mkbinexpr(twoz.op, one, twoz.val, pos);
     }),
 );
 
@@ -694,25 +720,50 @@ l.set(
     })),
 );
 
-/*
 l.set(
-    "callsuffix",
-    p(
-        "(",
-        _,
-        star(p(o.expr, _, ",", _).scb(q => q[0].val)).scb(q =>
-            q.map(m => m.val),
-        ),
-        ")",
-    ).scb(m => (q: AstExpr): AstExpr => ({
-        expr: "call",
-        method: q,
-        args: m[2].val,
+    "indexsuffix",
+    p("[", _, o.expr, _, "]", _).scb((m, pos) => (q: AstExpr): AstExpr => ({
+        expr: "arrayindex",
+        from: q,
+        index: m[2].val,
+        pos,
     })),
 );
 
-l.set("suffixexpr", p(o.noopexpr, _, star(p(o.callsuffix, _))));
-*/
+l.set(
+    "ptrfollowsuffix",
+    p(".*", _).scb((m, pos) => (q: AstExpr): AstExpr => ({
+        expr: "pointer",
+        from: q,
+        pos,
+    })),
+);
+
+l.set(
+    "addressofexpr",
+    p("&", _, o.prefixexpr).scb((r, pos) => ({
+        expr: "addressof",
+        of: r[2].val,
+        pos,
+    })),
+);
+
+l.set(
+    "prefixexpr",
+    or(o.addressofexpr, o.suffixexpr).scb(r => r.data.val),
+);
+
+l.set(
+    "suffixexpr",
+    p(o.noopexpr, _, star(or(o.indexsuffix, o.ptrfollowsuffix))).scb(m => {
+        let resexpr = m[0].val;
+        for (let itm of m[2].val as any[]) {
+            let suffixfn = itm.val.data.val;
+            resexpr = suffixfn(resexpr);
+        }
+        return resexpr;
+    }),
+);
 
 l.set(
     "noopexpr",
@@ -770,8 +821,9 @@ l.set(
 
 // l.set("implicitCtxExpression") // idk
 
-export function parse(code: string) {
-    console.log(l.print());
+console.log(l.print());
+export function parse(code: string, filename: string) {
+    deepest = { index: -1, line: 0, col: 0 };
 
     let res = o.code.parse({ str: code }, { index: 0, col: 0, line: 0 });
 
@@ -785,7 +837,6 @@ export function parse(code: string) {
         "utf-8",
     );
 
-    console.log();
     if (deepest.index !== code.length) {
         console.log(deepest);
         let tensp = " ".repeat(10);
@@ -808,7 +859,7 @@ export function parse(code: string) {
         };
         console.log(
             colors.green +
-                "./src/test/test.lang" +
+                filename +
                 colors.clear +
                 ":" +
                 colors.number +

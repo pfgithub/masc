@@ -1,7 +1,7 @@
 \.text
 $sp = $sp - 8;
 var stack_value: [*]u32 = $sp;
-stack_value[0] = 5;
-stack_value[1] = 10;
-var value: u32 = stack_value[1];
-var pointer: [*]u32 = stack_value&[1];
+// stack_value[0] = 5;
+// stack_value[1] = 10; // not supported yet
+var value: u32 = stack_value[1]; // expct 1($t0)
+var pointer: [*]u32 = &stack_value[1]; // la 1($t0)

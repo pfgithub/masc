@@ -1,10 +1,10 @@
 import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
 var inputCode: string = undefined as any; // wow this is bad
-export function compile(srcraw: string): string {
+export function compile(srcraw: string, filename: string): string {
     let src = srcraw.split("\t").join("    ");
     inputCode = src;
-    const baseast = parse(src) as Ast[];
+    const baseast = parse(src, filename) as Ast[];
     let mair = mipsgen(baseast);
     let res = finalize(mair);
     inputCode = new Error("uh oh") as any;
@@ -30,8 +30,6 @@ function genlabel(name: string): string {
     return name + "_0";
 }
 
-type Type = "u32" | "i32" | "any" | "void";
-
 // because prettier doesn't know how to format code sensibly:
 // (zig fmt has no problem with this)
 // prettier-ignore
@@ -53,8 +51,21 @@ let userRegisters: string[] = [
 
 let matchIRRegisters = /%%:(?:out\:)?register:(..):%%/g;
 
+type Type =
+    | { type: "u32" }
+    | { type: "i32" }
+    | { type: "any" }
+    | { type: "void" }
+    | { type: "pointer"; child: Type }
+    | { type: "arrayptr"; child: Type };
+
 function evalType(tast: AstType): Type {
-    return tast.kind;
+    if (tast.type === "builtin") return { type: tast.kind };
+    if (tast.type === "pointer")
+        return { type: "pointer", child: evalType(tast.child) };
+    if (tast.type === "arrayptr")
+        return { type: "arrayptr", child: evalType(tast.child) };
+    return asun(tast);
 }
 
 /*
@@ -75,21 +86,38 @@ let commentSeparator = "%%__COMMENT_SEP__%%";
 
 type ExprRetV = { typ: Type; reg: string };
 
+function getImmediate(vnm: VNM, expr: AstExpr): undefined | { value: number } {
+    if (expr.expr === "immediate") {
+        return { value: +expr.value };
+    }
+    return undefined;
+}
+
 function evalExprAllowImmediate(
     vnm: VNM,
     expr: AstExpr,
     lines?: string[],
 ): ExprRetV {
-    if (expr.expr === "immediate") {
-        return { reg: expr.value, typ: "any" };
+    let imm = getImmediate(vnm, expr);
+    if (imm) {
+        return { reg: "" + imm.value, typ: { type: "any" } };
     } else {
         return evalExprAnyOut(vnm, expr, lines);
     }
 }
 
+let anytype = (): Type => ({ type: "any" });
+
 function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
     if (expr.expr === "register") {
-        return { reg: genreg(expr.register), typ: "any" };
+        let type: Type =
+            expr.register === "sp"
+                ? {
+                      type: "arrayptr",
+                      child: { type: "any" },
+                  }
+                : anytype();
+        return { reg: genreg(expr.register), typ: type };
     } else if (expr.expr === "variable") {
         let va = vnm.get(expr.var);
         if (!va) throw new Error("variable not found " + expr.var);
@@ -106,22 +134,36 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
 }
 
 function matchTypes(ta: Type, tb: Type): Type {
-    if (ta !== "any") {
-        if (tb === "any") return ta;
-        if (tb === ta) return ta;
-        throw new Error("Incompatible Types: " + ta + ", " + tb);
+    if (ta.type !== "any") {
+        if (tb.type === "any") return ta;
+        if (tb.type === ta.type) return ta;
+        throw new Error("Incompatible Types: " + ta.type + ", " + tb.type);
     }
-    if (tb !== "any") {
-        if (ta === "any") return tb;
-        if (tb === ta) return ta;
-        throw new Error("Incompatible Types: " + ta + ", " + tb);
+    if (tb.type !== "any") {
+        return tb;
     }
-    return "any";
+    return { type: "any" };
+}
+
+function sizeof(ta: Type): number {
+    if (ta.type === "any") throw new Error("Cannot sizeof any");
+    if (ta.type === "u32") return 4;
+    if (ta.type === "i32") return 4;
+    if (ta.type === "void") return 0;
+    if (ta.type === "pointer") return 4;
+    if (ta.type === "arrayptr") return 4;
+    return asun(ta);
 }
 
 // if an expected return value arg is passed, it might be useful
-function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
-    out = out.replace("%%:", "%%:out:");
+function evalExpr(
+    vnm: VNM,
+    expr: AstExpr,
+    outraw: string,
+    lines: string[],
+    addressof: boolean = false,
+): Type {
+    let out = outraw.replace("%%:", "%%:out:");
     // run an expr and set resregister to the expr result;
     let simpleRegister = evalExprAnyOut(vnm, expr);
     if (simpleRegister !== exprNotAvailable) {
@@ -130,19 +172,51 @@ function evalExpr(vnm: VNM, expr: AstExpr, out: string, lines: string[]): Type {
         return simpleRegister.typ;
     } else if (expr.expr === "immediate") {
         lines.push(`li ${out} ${expr.value}`);
-        return "any";
-    } else if (expr.expr === "add") {
+        return anytype();
+    } else if (expr.expr === "op") {
         let a = evalExprAnyOut(vnm, expr.left, lines);
         let b = evalExprAllowImmediate(vnm, expr.right, lines);
+        let base = ({ "+": "add", "-": "sub" } as const)[expr.op];
 
         let resType = matchTypes(a.typ, b.typ);
-        if (resType === "u32") lines.push(`addu ${out}, ${a.reg} ${b.reg}`);
-        else if (resType === "i32") lines.push(`add ${out}, ${a.reg} ${b.reg}`);
-        else throw new Error("Add does not support type " + resType);
+        if (resType.type === "u32" || resType.type === "arrayptr")
+            lines.push(`${base}u ${out}, ${a.reg} ${b.reg}`);
+        else if (resType.type === "i32")
+            lines.push(`${base} ${out}, ${a.reg} ${b.reg}`);
+        else throw new Error("Add does not support type " + resType.type);
 
         return resType;
+    } else if (expr.expr === "addressof") {
+        let resType = evalExpr(vnm, expr.of, outraw, lines, true);
+        return resType;
+    } else if (expr.expr === "arrayindex") {
+        let lw = addressof ? "la" : "lw";
+        let from = evalExprAnyOut(vnm, expr.from, lines);
+        if (from.typ.type !== "arrayptr")
+            throw new Error("Can only index [*]pointer. got " + from.typ.type);
+        let size = sizeof(from.typ);
+        let indexImmediate = getImmediate(vnm, expr.index);
+        if (indexImmediate) {
+            let iim = indexImmediate.value;
+            lines.push(`${lw} ${out} ${iim * size}(${from.reg})`);
+        } else {
+            let index = evalExprAnyOut(vnm, expr.index, lines);
+            if (index.typ.type !== "u32") throw new Error("Index must be u32");
+            let tmp = gentemp();
+            lines.push(`mulo ${tmp}, ${index.reg} ${size}`);
+            lines.push(`${lw} ${out} (${tmp})`);
+        }
+        return addressof ? from.typ : from.typ.child;
+    } else if (expr.expr === "pointer") {
+        let lw = addressof ? "la" : "lw";
+        // lw $res ($in)
+        let from = evalExprAnyOut(vnm, expr.from, lines);
+        if (from.typ.type !== "pointer")
+            throw new Error("Can only pointer dereference pointer");
+        lines.push(`${lw} ${out} (${from.reg})`);
+        return addressof ? from.typ : from.typ.child;
     } else if (expr.expr === "undefined") {
-        return "any";
+        return anytype();
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
@@ -427,8 +501,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             let right = evalExprAllowImmediate(vnm, line.condright, code);
             let conditionType = matchTypes(left.typ, right.typ);
             let u: string;
-            if (conditionType === "u32") u = "u";
-            else if (conditionType === "i32") u = "";
+            if (conditionType.type === "u32") u = "u";
+            else if (conditionType.type === "i32") u = "";
             else throw new Error("unsupported if type " + conditionType);
             // this would be much more fun to code in zig
             // I didn't want to because it would require setting up a
@@ -499,7 +573,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             if (!line.inline) insertNormalFnBody(vnm, code, fni.real!);
         } else if (line.ast === "expr") {
             let res = evalExprAnyOut(vnm, line.expr, code);
-            if (res.typ !== "void") throw new Error("unused value " + res.typ);
+            if (res.typ.type !== "void")
+                throw new Error("unused value " + res.typ);
         } else {
             asun(line);
         }
