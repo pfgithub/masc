@@ -1,0 +1,41 @@
+\.text
+// array[0] // the value at array[0]
+// array&[0] // pointer to the value at array[0]
+fn fibonacci(out: [*]u32, count: u32) void {
+    var index: u32 = 0;
+    var address: [*]u32 = out;
+    
+    forever {
+        if index == count {break;}
+        if index <= 1 {
+            address[0] = index;
+            continue;
+        }
+        address[0] = address[-2] + address[-1];
+    } : {
+        index += 1;
+        address = address&[1];
+    }
+}
+
+fn print_results(data_array: [*]u32, count: u32) void {
+    var index: u32 = 0;
+    var address: [*]u32 = data_array;
+    forever {
+        index += 1;
+        address = address&[1];
+        if index == count {break;}
+        if index != 1 {
+            print_str(", ");
+        }
+        print_integer_unsigned(address[0]);
+    }
+}
+
+print_str("Count? ");
+var count = read_i32();
+
+var array: [*]u32 = @stack_alloc(u32, count);
+fibonacci(array, count);
+print_results(array, count);
+print_str("\n");
