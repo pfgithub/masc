@@ -29,11 +29,10 @@ print_int_call_1:                        #
     subiu $sp, $sp, 4                    # 
     sw $s0, 0($sp)                       # 
     # save args                          # 
-    move $t0 $a0                         # 
                                          # 
     # body                               # 
     li $s0 256                           #     $s0 = 256;
-    move $t0 $t0                         #     write_int(int);
+    move $t0 $a0                         #     write_int(int);
     li $v0 36                            # 
     move $a0 $t0                         # 
     syscall                              # 

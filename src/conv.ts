@@ -843,6 +843,7 @@ function registerAllocate(rawIR: string[]): string[] {
         return unavailableRegisters;
     };
     let registersOnlyIR: string[] = [];
+    let markDelete: true[] = [];
     rawIR.forEach((line, i) => {
         registersOnlyIR.push(
             line.replace(/%%:((?:out\:)?)variable:(.+?):%%/g, (_, om, letr) => {
@@ -851,16 +852,21 @@ function registerAllocate(rawIR: string[]): string[] {
                 let unavailable = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
-                // TODO if this is a move instruction, if allowed, use the register in the second half of the move instruction and delete the instruction
-                // EG: move {somevar} $a0
-                // if $a0 is allowed
-                // set somevar = a0
+                let moveInstruction = line.match(
+                    /^\s*move[\s,]+%%:out:variable:(.+?):%%[\s,]+%%:register:(.+?):%%\s*/,
+                );
+                if (moveInstruction && moveInstruction[1] === letr) {
+                    if (!unavailable.has(moveInstruction[2])) {
+                        reg = moveInstruction[2];
+                        markDelete[i] = true;
+                    }
+                }
                 registerNameMap[letr] = reg;
                 return "%%:" + om + "register:" + reg + ":%%";
             }),
         );
     });
-    return registersOnlyIR;
+    return registersOnlyIR.filter((_, i) => !markDelete[i]);
 }
 function compileAllocated(registersOnlyIR: string[]) {
     return registersOnlyIR

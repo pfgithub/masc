@@ -13,6 +13,5 @@ mulo $t2, $t1 4  # var unused: u32 = stack_value[index];
 add $t0, $t2 $t0 # 
 lw $t0 ($t0)     # 
                  # 
-move $t0 $sp     # var stack_u8: [*]u8 = $sp;
-add $t0, $t1 $t0 # var unused2: u8 = stack_u8[index];
+add $t0, $t1 $sp # var unused2: u8 = stack_u8[index];
 lb $t0 ($t0)     # 
