@@ -30,14 +30,16 @@ fn translate(message: [*]u8, key: [*]u8) void {
 	\# get length of key
 	var key_len: u32 = 0;
 	loop {
-		if key[key_len] == 0 {break;}
+		\# exit on newline (10)
+		if key[key_len] == 10 {break;}
 		key_len = key_len + 1;
 	}
 	
 	\# encrypt/decrypt message
 	var index: u32 = 0;
 	loop {
-		if message[index] == 0 {break;}
+		\# exit on newline (10)
+		if message[index] == 10 {break;}
 		save message[index] = message[index] ^ key[index % key_len];
 		index = index + 1;
 	}

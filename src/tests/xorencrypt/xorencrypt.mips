@@ -1,75 +1,77 @@
-.macro print_str (%str)       # 
-    .data                     # 
-        string: .asciiz %str  # 
-    .text                     # 
-        li $v0, 4             # 
-        la $a0, string        # 
-        syscall               # 
-.end_macro                    # 
-.text                         # 
-j translate_skip_1            # fn translate(message: [*]u8, key: [*]u8) void {
-translate_call_1:             # 
-    # save args               # 
-    move $t0 $a0              # 
-    move $t1 $a1              # 
-                              # 
-    # body                    # 
-    # get length of key       # 
-    li $t2 0                  #     var key_len: u32 = 0;
-    loop_start_1:             #     loop {
-        add $t3, $t2 $t1      #         if key[key_len] == 0 {break;}
-        lb $t3 ($t3)          # 
-        beqz $t3, loop_end_1  # 
-        addu $t2, $t2 1       #         key_len = key_len + 1;
-    j loop_start_1            # 
-    loop_end_1:               # 
-    # encrypt/decrypt message # 
-    li $t3 0                  #     var index: u32 = 0;
-    loop_start_2:             #     loop {
-        add $t4, $t3 $t0      #         if message[index] == 0 {break;}
-        lb $t4 ($t4)          # 
-        beqz $t4, loop_end_2  # 
-        add $t4, $t3 $t0      #         save message[index] = message[index] ^ key[index % key_len];
-        lb $t4 ($t4)          # 
-        remu $t2, $t3 $t2     # 
-        add $t1, $t2 $t1      # 
-        lb $t1 ($t1)          # 
-        xor $t1 $t4 $t1       # 
-        add $t0, $t3 $t0      # 
-        sb $t1 ($t0)          # 
-        addu $t3, $t3 1       #         index = index + 1;
-    j loop_start_2            # 
-    loop_end_2:               # 
-                              # 
-    addiu $sp, $sp, 0         # 
-jr $ra                        # 
-translate_skip_1:             # 
-subu $sp, $sp 255             # $sp = $sp - 255;
-addu $s0, $sp 128             # var key: [*]u8 = $sp + 128;
-print_str("Plain text:\n  ")  # 
-move $t0 $sp                  # read_string($sp, 128);
-li $t1 128                    # 
-li $v0 8                      # 
-move $a0 $t0                  # 
-move $a1 $t1                  # 
-syscall                       # 
-print_str("Key:\n  ")         # 
-move $t0 $s0                  # read_string(key, 128);
-li $t1 128                    # 
-li $v0 8                      # 
-move $a0 $t0                  # 
-move $a1 $t1                  # 
-syscall                       # 
-move $a0 $sp                  # translate($sp, key);
-move $a1 $s0                  # 
-jal translate_call_1          # 
-print_str("Cipher text:\n  ") # 
-move $t0 $sp                  # print_string($sp);
-li $v0 4                      # 
-move $a0 $t0                  # 
-syscall                       # 
-print_str("Decrypted:\n  ")   # 
-move $t0 $sp                  # print_string($sp);
-li $v0 4                      # 
-move $a0 $t0                  # 
-syscall                       # 
+.macro print_str (%str)        # 
+    .data                      # 
+        string: .asciiz %str   # 
+    .text                      # 
+        li $v0, 4              # 
+        la $a0, string         # 
+        syscall                # 
+.end_macro                     # 
+.text                          # 
+j translate_skip_1             # fn translate(message: [*]u8, key: [*]u8) void {
+translate_call_1:              # 
+    # save args                # 
+    move $t0 $a0               # 
+    move $t1 $a1               # 
+                               # 
+    # body                     # 
+    # get length of key        # 
+    li $t2 0                   #     var key_len: u32 = 0;
+    loop_start_1:              #     loop {
+        # exit on newline (10) # 
+        add $t3, $t2 $t1       #         if key[key_len] == 10 {break;}
+        lb $t3 ($t3)           # 
+        beq $t3 10, loop_end_1 # 
+        addu $t2, $t2 1        #         key_len = key_len + 1;
+    j loop_start_1             # 
+    loop_end_1:                # 
+    # encrypt/decrypt message  # 
+    li $t3 0                   #     var index: u32 = 0;
+    loop_start_2:              #     loop {
+        # exit on newline (10) # 
+        add $t4, $t3 $t0       #         if message[index] == 10 {break;}
+        lb $t4 ($t4)           # 
+        beq $t4 10, loop_end_2 # 
+        add $t4, $t3 $t0       #         save message[index] = message[index] ^ key[index % key_len];
+        lb $t4 ($t4)           # 
+        remu $t2, $t3 $t2      # 
+        add $t1, $t2 $t1       # 
+        lb $t1 ($t1)           # 
+        xor $t1 $t4 $t1        # 
+        add $t0, $t3 $t0       # 
+        sb $t1 ($t0)           # 
+        addu $t3, $t3 1        #         index = index + 1;
+    j loop_start_2             # 
+    loop_end_2:                # 
+                               # 
+    addiu $sp, $sp, 0          # 
+jr $ra                         # 
+translate_skip_1:              # 
+subu $sp, $sp 255              # $sp = $sp - 255;
+addu $s0, $sp 128              # var key: [*]u8 = $sp + 128;
+print_str("Plain text:\n  ")   # 
+move $t0 $sp                   # read_string($sp, 128);
+li $t1 128                     # 
+li $v0 8                       # 
+move $a0 $t0                   # 
+move $a1 $t1                   # 
+syscall                        # 
+print_str("Key:\n  ")          # 
+move $t0 $s0                   # read_string(key, 128);
+li $t1 128                     # 
+li $v0 8                       # 
+move $a0 $t0                   # 
+move $a1 $t1                   # 
+syscall                        # 
+move $a0 $sp                   # translate($sp, key);
+move $a1 $s0                   # 
+jal translate_call_1           # 
+print_str("Cipher text:\n  ")  # 
+move $t0 $sp                   # print_string($sp);
+li $v0 4                       # 
+move $a0 $t0                   # 
+syscall                        # 
+print_str("Decrypted:\n  ")    # 
+move $t0 $sp                   # print_string($sp);
+li $v0 4                       # 
+move $a0 $t0                   # 
+syscall                        # 
