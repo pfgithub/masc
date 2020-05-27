@@ -758,7 +758,7 @@ function registerAllocate(rawIR: string[]): string[] {
                 solveVariableInternal(
                     variableID,
                     revisitStart,
-                    j,
+                    j + 1,
                     unavailableRegisters,
                     visitedMarks,
                 );
