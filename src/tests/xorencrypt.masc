@@ -26,33 +26,48 @@ inline fn print_string(string: [*]u8) void {
     syscall();
 }
 
+fn read_until_newline(buffer: [*]u8, max_len: u32) void {
+	read_string(buffer, max_len);
+	var addr: [*]u8 = buffer;
+	loop {
+		if addr[0] == 13 {break;}
+		if addr[0] == 10 {break;}
+		addr = &addr[1];
+	}
+	save addr[0] = 0;
+}
+
 fn translate(message: [*]u8, key: [*]u8) void {
 	\# get length of key
 	var key_len: u32 = 0;
 	loop {
-		\# exit on newline (10)
-		if key[key_len] == 10 {break;}
+		if key[key_len] == 0 {break;}
 		key_len = key_len + 1;
 	}
 	
 	\# encrypt/decrypt message
 	var index: u32 = 0;
 	loop {
-		\# exit on newline (10)
-		if message[index] == 10 {break;}
+		if message[index] == 0 {break;}
 		save message[index] = message[index] ^ key[index % key_len];
 		index = index + 1;
 	}
 }
 
-$sp = $sp - 255;
+$sp = $sp - 256;
 var key: [*]u8 = $sp + 128;
+\
 \print_str("Plain text:\n  ")
-read_string($sp, 128);
+read_until_newline($sp, 128);
+\
 \print_str("Key:\n  ")
-read_string(key, 128);
+read_until_newline(key, 128);
+\
+\print_str("Encrypted:\n  ")
 translate($sp, key);
-\print_str("Cipher text:\n  ")
 print_string($sp);
-\print_str("Decrypted:\n  ")
+\
+\print_str("\nDecrypted:\n  ")
+translate($sp, key);
 print_string($sp);
+\print_str("\n")
