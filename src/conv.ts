@@ -522,13 +522,13 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     bodyLines.push(...compileAllocated(bodyCodeAllocated));
 
     // 4: reload s variables from stack
-    bodyLines.push("");
+    if (svars.length > 0) bodyLines.push("");
     if (svars.length > 0)
         bodyLines.push("# reload used s registers from stack");
     svars.forEach((svar, i) => {
         bodyLines.push("lw $" + svar + ", " + i * 4 + "($sp)");
     });
-    bodyLines.push("addiu $sp, $sp, " + svars.length * 4);
+    if (svars.length > 0) bodyLines.push("addiu $sp, $sp, " + svars.length * 4);
 
     let endLabel = genlabel(fn.name + "_skip");
     // jump over fn

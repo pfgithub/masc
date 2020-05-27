@@ -69,8 +69,6 @@ translate_call_1:
         addu $t1, $t1 1     #         index = index + 1;
     j loop_start_3
     loop_end_3:
-    
-    addiu $sp, $sp, 0
 jr $ra
 translate_skip_1:
 subu $sp, $sp 256           # $sp = $sp - 256;
