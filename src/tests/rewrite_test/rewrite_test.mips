@@ -1,46 +1,47 @@
-move $t0 $zero      # var x: u32 = 0;
-li $t0 1            # var y: u32 = 1;
-li $t0 2            # x = 2;
-move $t0 $zero      # y = 0;
-move $a0 $t0        # $a0 = y;
-move $a0 $t0        # $a0 = x;
+move $t0 $zero    # var x: u32 = 0;
+li $t0 1          # var y: u32 = 1;
+li $t0 2          # x = 2;
+move $t0 $zero    # y = 0;
+move $a0 $t0      # $a0 = y;
+move $a0 $t0      # $a0 = x;
 
-li $t0 12           # var a: u32 = 12;
-li $t1 24           # var b: u32 = 24;
-addu $t0, $t0 $t1   # var c: u32 = a + b;
+li $t0 12         # var a: u32 = 12;
+li $t1 24         # var b: u32 = 24;
+addu $t0, $t0 $t1 # var c: u32 = a + b;
 
-li $t0 12           # var a_: u32 = 12;
-li $t1 24           # var b_: u32 = 24;
-addu $t2, $t0 $t1   # var c_: u32 = a_ + b_;
-addu $t2, $t0 $t1   # c_ = a_ + b_;
+li $t0 12         # var a_: u32 = 12;
+li $t1 24         # var b_: u32 = 24;
+addu $t2, $t0 $t1 # var c_: u32 = a_ + b_;
+addu $t2, $t0 $t1 # c_ = a_ + b_;
 
-move $t0 $zero      # var d: u32 = 0;
-li $t1 1            # var e: u32 = 1;
-li $t0 2            # var f: u32 = 2;
-addu $t1, $t1 1     # e = e + 1;
-addu $t0, $t0 $t1   # f = d + e;
+move $t0 $zero    # var d: u32 = 0;
+li $t1 1          # var e: u32 = 1;
+li $t0 2          # var f: u32 = 2;
+addu $t1, $t1 1   # e = e + 1;
+addu $t0, $t0 $t1 # f = d + e;
 
-move $t0 $zero      # var d_: u32 = 0;
-li $t1 1            # var e_: u32 = 1;
-li $t2 2            # var f_: u32 = 2;
-addu $t1, $t1 1     # e_ = e_ + 1;
-addu $t2, $t0 $t1   # f_ = d_ + e_;
-addu $t2, $t0 $t1   # f_ = d_ + e_;
+move $t0 $zero    # var d_: u32 = 0;
+li $t1 1          # var e_: u32 = 1;
+li $t2 2          # var f_: u32 = 2;
+addu $t1, $t1 1   # e_ = e_ + 1;
+addu $t2, $t0 $t1 # f_ = d_ + e_;
+addu $t2, $t0 $t1 # f_ = d_ + e_;
 
-move $t0 $zero      # var g: u32 = 0;
-loop_start_1:       # loop {
-    move $t1 $t0    #     var h: u32 = g;
+move $t0 $zero    # var g: u32 = 0;
+loop_start_1:     # loop {
+    move $t1 $t0  #     var h: u32 = g;
 j loop_start_1
 loop_end_1:
 
-move $t0 $zero      # var l: u32 = 0;
-li $t1 5            # var m: u32 = 5;
-addu $t1, $t0 $t1   # var n: u32 = l + m;
-li $t1 5            # m = 5;
-addu $t1, $t0 $t1   # n = l + m;
+move $t0 $zero    # var l: u32 = 0;
+li $t1 5          # var m: u32 = 5;
+addu $t1, $t0 $t1 # var n: u32 = l + m;
+li $t1 5          # m = 5;
+addu $t1, $t0 $t1 # n = l + m;
 
-loop_start_2:       # loop {
-    li $t0 5        #     var k: u32 = 5;
-    addu $t0, $zero $t0#     var j: u32 = i + k;
+move $t0 $zero    # var i: u32 = 0;
+loop_start_2:     # loop {
+    li $t1 5      #     var k: u32 = 5;
+    addu $t1, $t0 $t1#     var j: u32 = i + k;
 j loop_start_2
 loop_end_2:

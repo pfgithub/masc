@@ -823,6 +823,8 @@ function registerAllocate(rawIR: string[]): string[] {
             }
 
             if (line.includes("%%:out:variable:" + variableID + ":%%")) {
+                // cannot assign to zero
+                finalUnavailable.add("zero");
                 // add new unavs
                 for (let inreg of regs) {
                     getUnav(inreg).add(inreg);

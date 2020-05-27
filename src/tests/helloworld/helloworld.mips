@@ -68,14 +68,15 @@ li $t0 5                 # t0__1 = 5;
 
 
 
+move $t0 $zero           # var expct_t0: u32 = 0;
 li $t1 1                 # var expct_t1: u32 = 1;
 li $t0 2                 # var expct_t0_also: u32 = 2;
 addu $t1, $t1 1          # expct_t1 = expct_t1 + 1;
 addu $t0, $t0 2          # expct_t0_also = expct_t0_also + 2;
 li $t0 5                 # $t0 = 5;
-move $zero $t1           # expct_t0 = expct_t1;
+move $t0 $t1             # expct_t0 = expct_t1;
 li $t0 6                 # $t0 = 6;
-move $zero $t1           # expct_t0 = expct_t1;
+move $t0 $t1             # expct_t0 = expct_t1;
 
 
 
