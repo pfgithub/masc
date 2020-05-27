@@ -1,52 +1,52 @@
-.text                                    # 
-                                         # 
-li $t0 25                                # write_int(25);
-li $v0 36                                # 
-move $a0 $t0                             # 
-syscall                                  # 
-li $v0 11                                # write_newline();
-li $a0, '\n'                             # 
-syscall                                  # 
-li $s0 10                                # var must_save: u32 = 10;
-li $t0 5                                 # var x: u32 = 5;
-move $t0 $t0                             # write_int(x);
-li $v0 36                                # 
-move $a0 $t0                             # 
-syscall                                  # 
-li $v0 11                                # write_newline();
-li $a0, '\n'                             # 
-syscall                                  # 
-move $t0 $s0                             # write_int(must_save);
-li $v0 36                                # 
-move $a0 $t0                             # 
-syscall                                  # 
-li $v0 11                                # write_newline();
-li $a0, '\n'                             # 
-syscall                                  # 
-j print_int_skip_1                       # fn print_int(int: u32) void {
-print_int_call_1:                        # 
-    # save used s registers to stack     # 
-    subiu $sp, $sp, 4                    # 
-    sw $s0, 0($sp)                       # 
-    # save args                          # 
-                                         # 
-    # body                               # 
-    li $s0 256                           #     $s0 = 256;
-    move $t0 $a0                         #     write_int(int);
-    li $v0 36                            # 
-    move $a0 $t0                         # 
-    syscall                              # 
-    li $v0 11                            #     write_newline();
-    li $a0, '\n'                         # 
-    syscall                              # 
-                                         # 
-    # reload used s registers from stack # 
-    lw $s0, 0($sp)                       # 
-    addiu $sp, $sp, 4                    # 
-jr $ra                                   # 
-print_int_skip_1:                        # 
-li $s0 10                                # var must_save_2: u32 = 10;
-li $a0 6                                 # print_int(6);
-jal print_int_call_1                     # 
-move $a0 $s0                             # print_int(must_save_2);
-jal print_int_call_1                     # 
+.text
+
+li $t0 25          # write_int(25);
+li $v0 36
+move $a0 $t0
+syscall
+li $v0 11          # write_newline();
+li $a0, '\n'
+syscall
+li $s0 10          # var must_save: u32 = 10;
+li $t0 5           # var x: u32 = 5;
+move $t0 $t0       # write_int(x);
+li $v0 36
+move $a0 $t0
+syscall
+li $v0 11          # write_newline();
+li $a0, '\n'
+syscall
+move $t0 $s0       # write_int(must_save);
+li $v0 36
+move $a0 $t0
+syscall
+li $v0 11          # write_newline();
+li $a0, '\n'
+syscall
+j print_int_skip_1 # fn print_int(int: u32) void {
+print_int_call_1:
+    # save used s registers to stack
+    subiu $sp, $sp, 4
+    sw $s0, 0($sp)
+    # save args
+    
+    # body
+    li $s0 256     #     $s0 = 256;
+    move $t0 $a0   #     write_int(int);
+    li $v0 36
+    move $a0 $t0
+    syscall
+    li $v0 11      #     write_newline();
+    li $a0, '\n'
+    syscall
+    
+    # reload used s registers from stack
+    lw $s0, 0($sp)
+    addiu $sp, $sp, 4
+jr $ra
+print_int_skip_1:
+li $s0 10          # var must_save_2: u32 = 10;
+li $a0 6           # print_int(6);
+jal print_int_call_1
+move $a0 $s0       # print_int(must_save_2);
+jal print_int_call_1

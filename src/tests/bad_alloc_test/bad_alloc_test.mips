@@ -1,5 +1,5 @@
 li $t0 0          # var t0: u32 = 0;
 li $t1 1          # var t1: u32 = 1;
-                  # 
+
 addu $t2, $t0 $t1 # var t2: u32 = t0 + t1;
 addu $t2, $t0 $t1 # t2 = t0 + t1;

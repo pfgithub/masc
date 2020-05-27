@@ -1,106 +1,106 @@
-.macro print_str (%str)                  # 
-    .data                                # 
-        string: .asciiz %str             # 
-    .text                                # 
-        li $v0, 4                        # 
-        la $a0, string                   # 
-        syscall                          # 
-.end_macro                               # 
-.text                                    # 
-j read_until_newline_skip_1              # fn read_until_newline(buffer: [*]u8, max_len: u32) void {
-read_until_newline_call_1:               # 
-    # save used s registers to stack     # 
-    subiu $sp, $sp, 4                    # 
-    sw $s0, 0($sp)                       # 
-    # save args                          # 
-    move $s0 $a0                         # 
-                                         # 
-    # body                               # 
-    move $t0 $s0                         #     read_string(buffer, max_len);
-    move $t1 $a1                         # 
-    li $v0 8                             # 
-    move $a0 $t0                         # 
-    move $a1 $t1                         # 
-    syscall                              # 
-    move $t0 $s0                         #     var addr: [*]u8 = buffer;
-    loop_start_1:                        #     loop {
-        lb $t1 ($t0)                     #         if addr[0] == 13 {break;}
-        beq $t1 13, loop_end_1           # 
-        lb $t1 ($t0)                     #         if addr[0] == 10 {break;}
-        beq $t1 10, loop_end_1           # 
-        la $t0 1($t0)                    #         addr = &addr[1];
-    j loop_start_1                       # 
-    loop_end_1:                          # 
-    li $t1 0                             #     save addr[0] = 0;
-    sb $t1 ($t0)                         # 
-                                         # 
-    # reload used s registers from stack # 
-    lw $s0, 0($sp)                       # 
-    addiu $sp, $sp, 4                    # 
-jr $ra                                   # 
-read_until_newline_skip_1:               # 
-j translate_skip_1                       # fn translate(message: [*]u8, key: [*]u8) void {
-translate_call_1:                        # 
-    # save args                          # 
-                                         # 
-    # body                               # 
-    # get length of key                  # 
-    li $t0 0                             #     var key_len: u32 = 0;
-    loop_start_2:                        #     loop {
-        add $t1, $t0 $a1                 #         if key[key_len] == 0 {break;}
-        lb $t1 ($t1)                     # 
-        beqz $t1, loop_end_2             # 
-        addu $t0, $t0 1                  #         key_len = key_len + 1;
-    j loop_start_2                       # 
-    loop_end_2:                          # 
-    # encrypt/decrypt message            # 
-    li $t1 0                             #     var index: u32 = 0;
-    loop_start_3:                        #     loop {
-        add $t2, $t1 $a0                 #         if message[index] == 0 {break;}
-        lb $t2 ($t2)                     # 
-        beqz $t2, loop_end_3             # 
-        add $t2, $t1 $a0                 #         save message[index] = message[index] ^ key[index % key_len];
-        lb $t2 ($t2)                     # 
-        remu $t3, $t1 $t0                # 
-        add $t3, $t3 $a1                 # 
-        lb $t3 ($t3)                     # 
-        xor $t2 $t2 $t3                  # 
-        add $t3, $t1 $a0                 # 
-        sb $t2 ($t3)                     # 
-        addu $t1, $t1 1                  #         index = index + 1;
-    j loop_start_3                       # 
-    loop_end_3:                          # 
-                                         # 
-    addiu $sp, $sp, 0                    # 
-jr $ra                                   # 
-translate_skip_1:                        # 
-subu $sp, $sp 256                        # $sp = $sp - 256;
-addu $s0, $sp 128                        # var key: [*]u8 = $sp + 128;
-                                         # 
-print_str("Plain text:\n  ")             # 
-move $a0 $sp                             # read_until_newline($sp, 128);
-li $a1 128                               # 
-jal read_until_newline_call_1            # 
-                                         # 
-print_str("Key:\n  ")                    # 
-move $a0 $s0                             # read_until_newline(key, 128);
-li $a1 128                               # 
-jal read_until_newline_call_1            # 
-                                         # 
-print_str("Encrypted:\n  ")              # 
-move $a0 $sp                             # translate($sp, key);
-move $a1 $s0                             # 
-jal translate_call_1                     # 
-move $t0 $sp                             # print_string($sp);
-li $v0 4                                 # 
-move $a0 $t0                             # 
-syscall                                  # 
-                                         # 
-print_str("\nDecrypted:\n  ")            # 
-move $a0 $sp                             # translate($sp, key);
-move $a1 $s0                             # 
-jal translate_call_1                     # 
-li $v0 4                                 # 
-move $a0 $sp                             # 
-syscall                                  # 
-print_str("\n")                          # 
+.macro print_str (%str)
+    .data
+        string: .asciiz %str
+    .text
+        li $v0, 4
+        la $a0, string
+        syscall
+.end_macro
+.text
+j read_until_newline_skip_1 # fn read_until_newline(buffer: [*]u8, max_len: u32) void {
+read_until_newline_call_1:
+    # save used s registers to stack
+    subiu $sp, $sp, 4
+    sw $s0, 0($sp)
+    # save args
+    move $s0 $a0
+    
+    # body
+    move $t0 $s0            #     read_string(buffer, max_len);
+    move $t1 $a1
+    li $v0 8
+    move $a0 $t0
+    move $a1 $t1
+    syscall
+    move $t0 $s0            #     var addr: [*]u8 = buffer;
+    loop_start_1:           #     loop {
+        lb $t1 ($t0)        #         if addr[0] == 13 {break;}
+        beq $t1 13, loop_end_1
+        lb $t1 ($t0)        #         if addr[0] == 10 {break;}
+        beq $t1 10, loop_end_1
+        la $t0 1($t0)       #         addr = &addr[1];
+    j loop_start_1
+    loop_end_1:
+    li $t1 0                #     save addr[0] = 0;
+    sb $t1 ($t0)
+    
+    # reload used s registers from stack
+    lw $s0, 0($sp)
+    addiu $sp, $sp, 4
+jr $ra
+read_until_newline_skip_1:
+j translate_skip_1          # fn translate(message: [*]u8, key: [*]u8) void {
+translate_call_1:
+    # save args
+    
+    # body
+    # get length of key
+    li $t0 0                #     var key_len: u32 = 0;
+    loop_start_2:           #     loop {
+        add $t1, $t0 $a1    #         if key[key_len] == 0 {break;}
+        lb $t1 ($t1)
+        beqz $t1, loop_end_2
+        addu $t0, $t0 1     #         key_len = key_len + 1;
+    j loop_start_2
+    loop_end_2:
+    # encrypt/decrypt message
+    li $t1 0                #     var index: u32 = 0;
+    loop_start_3:           #     loop {
+        add $t2, $t1 $a0    #         if message[index] == 0 {break;}
+        lb $t2 ($t2)
+        beqz $t2, loop_end_3
+        add $t2, $t1 $a0    #         save message[index] = message[index] ^ key[index % key_len];
+        lb $t2 ($t2)
+        remu $t3, $t1 $t0
+        add $t3, $t3 $a1
+        lb $t3 ($t3)
+        xor $t2 $t2 $t3
+        add $t3, $t1 $a0
+        sb $t2 ($t3)
+        addu $t1, $t1 1     #         index = index + 1;
+    j loop_start_3
+    loop_end_3:
+    
+    addiu $sp, $sp, 0
+jr $ra
+translate_skip_1:
+subu $sp, $sp 256           # $sp = $sp - 256;
+addu $s0, $sp 128           # var key: [*]u8 = $sp + 128;
+
+print_str("Plain text:\n  ")
+move $a0 $sp                # read_until_newline($sp, 128);
+li $a1 128
+jal read_until_newline_call_1
+
+print_str("Key:\n  ")
+move $a0 $s0                # read_until_newline(key, 128);
+li $a1 128
+jal read_until_newline_call_1
+
+print_str("Encrypted:\n  ")
+move $a0 $sp                # translate($sp, key);
+move $a1 $s0
+jal translate_call_1
+move $t0 $sp                # print_string($sp);
+li $v0 4
+move $a0 $t0
+syscall
+
+print_str("\nDecrypted:\n  ")
+move $a0 $sp                # translate($sp, key);
+move $a1 $s0
+jal translate_call_1
+li $v0 4
+move $a0 $sp
+syscall
+print_str("\n")

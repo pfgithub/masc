@@ -877,15 +877,16 @@ function commentate(code: string[]): string[] {
     let lsplits = code.map(l => l.split(commentSeparator));
     let maxLineLen = 12;
     for (let [code, comment] of lsplits) {
-        comment = comment || "";
+        if (!comment) continue;
         let tsc = /^ */.exec(comment)![0].length;
         let rl = code.length - tsc + 1;
         if (rl > maxLineLen) maxLineLen = rl;
     }
     let resLines: string[] = [];
     for (let [code, comment] of lsplits) {
-        comment = comment || "";
-        resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
+        if (comment)
+            resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
+        else resLines.push(code);
     }
     return resLines;
 }
