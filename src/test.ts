@@ -5,7 +5,9 @@ import { compile } from "./conv";
 
 let update = process.argv.includes("--update");
 
-let tests = fs.readdirSync("src/tests");
+let onetest = process.argv.find((q, i) => i > 1 && !q.startsWith("--"));
+
+let tests = onetest ? [onetest] : fs.readdirSync("src/tests");
 let pass = true;
 for (let testfylname of tests) {
     if (!testfylname.endsWith(".masc")) continue;
