@@ -625,7 +625,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                 code.push(lbl + ":");
             }
         } else if (line.ast === "loop") {
-            let startLabel = genlabel("loop_continue");
+            /// continueLabel = genlabel(loop_continue);
+            let startLabel = genlabel("loop_start");
             let endLabel = genlabel("loop_end");
 
             let vctx = makeVariableNameMap(vnm);
@@ -636,6 +637,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
             code.push(...rescode.map(l => "    " + l));
             code.push("%%{{controlflow_goto::" + startLabel + "}}%%");
+            code.push("j " + startLabel);
             code.push(endLabel + ":" + commentSeparator);
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
