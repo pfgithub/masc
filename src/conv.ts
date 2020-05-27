@@ -480,12 +480,18 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     precompiledLines.push("# body");
     precompiledLines.push(...mipsgen(fn.body, ivnm));
     console.log(
-        "\n\n\n\n======== " +
+        "\n======== " +
             fn.name +
             " ========\n" +
-            precompiledLines.join("\n"),
+            commentate(precompiledLines).join("\n"),
     );
     let bodyCodeAllocated = registerAllocate(precompiledLines);
+    console.log(
+        "\n======== " +
+            fn.name +
+            " ========\n" +
+            commentate(bodyCodeAllocated).join("\n"),
+    );
     let referencedSVariables = new Set<string>();
 
     for (let line of bodyCodeAllocated) {
@@ -814,10 +820,8 @@ function compileAllocated(registersOnlyIR: string[]) {
         .map(line => line.replace(matchIRRegisters, (_, q) => "$" + q))
         .filter(l => !l.trim().startsWith("%%{{"));
 }
-function finalize(rawIR: string[]): string {
-    let txt = compileAllocated(registerAllocate(rawIR));
-
-    let lsplits = txt.map(l => l.split(commentSeparator));
+function commentate(code: string[]): string[] {
+    let lsplits = code.map(l => l.split(commentSeparator));
     let maxLineLen = 12;
     for (let [code, comment] of lsplits) {
         comment = comment || "";
@@ -830,5 +834,9 @@ function finalize(rawIR: string[]): string {
         comment = comment || "";
         resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
     }
-    return resLines.join("\n");
+    return resLines;
+}
+function finalize(rawIR: string[]): string {
+    let txt = compileAllocated(registerAllocate(rawIR));
+    return commentate(txt).join("\n");
 }
