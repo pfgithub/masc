@@ -755,6 +755,10 @@ function registerAllocate(rawIR: string[]): string[] {
                 if (visitedMarks[cfRevisitMatch[1]]) continue;
                 visitedMarks[cfRevisitMatch[1]] = true;
                 let revisitStart = controlFlowMarks[cfRevisitMatch[1]]!;
+                console.log(
+                    "Now repeating. Current unavRegisIfReferenced: ",
+                    unavRegisIfReferenced,
+                );
                 solveVariableInternal(
                     variableID,
                     revisitStart,
