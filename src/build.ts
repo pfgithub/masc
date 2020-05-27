@@ -372,6 +372,7 @@ export type Ast =
     | (P & { ast: "loop"; code: Ast[] })
     | (P & { ast: "break" })
     | (P & { ast: "continue" })
+    | (P & { ast: "save"; saveloc: AstExpr; value: AstExpr })
     | FnAst
     | (P & { ast: "expr"; expr: AstExpr });
 
@@ -497,6 +498,7 @@ l.set(
                 o.calllyn,
                 o.setvarlyn,
                 o.defvarlyn,
+                o.storelyn,
             ).scb(r => r.data.val),
             _,
         ).scb(r => r[1].val),
@@ -627,6 +629,15 @@ l.set(
         _,
         ";",
     ).scb((r, pos) => mkdefvar(r[2].val, r[6].val, r[10].val, pos)),
+);
+l.set(
+    "storelyn",
+    p("save", _req, o.expr, _, "=", _, o.expr, _, ";").scb((r, pos) => ({
+        ast: "save",
+        saveloc: r[2].val,
+        value: r[6].val,
+        pos,
+    })),
 );
 
 l.set(
