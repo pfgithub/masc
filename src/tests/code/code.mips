@@ -24,10 +24,10 @@ li $v0 11                                # write_newline();
 li $a0, '\n'                             # 
 syscall                                  # 
 j print_int_skip_1                       # fn print_int(int: u32) void {
-print_int_call_1:                        #     $s0 = 256;
-    # save used s registers to stack     #     write_int(int);
-    subiu $sp, $sp, 4                    #     write_newline();
-    sw $s0, 0($sp)                       # }
+print_int_call_1:                        # 
+    # save used s registers to stack     # 
+    subiu $sp, $sp, 4                    # 
+    sw $s0, 0($sp)                       # 
     # save args                          # 
     move $t0 $a0                         # 
                                          # 

@@ -532,7 +532,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     // jump over fn
     rescode.push("j " + endLabel);
     // start label
-    rescode.push(fn.startLabel + ":");
+    rescode.push(fn.startLabel + ":" + commentSeparator);
     // body code
     rescode.push(...bodyLines.map(l => "    " + l));
     // return

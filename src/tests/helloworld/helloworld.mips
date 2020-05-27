@@ -8,11 +8,11 @@ move $a0 $t0                               #
 syscall                                    # 
                                            # 
 j normal_fn_skip_1                         # fn normal_fn(value: u32) void {
-normal_fn_call_1:                          #     var temp: u32 = 5;
-    # save used s registers to stack       #     var saved: u32 = 6;
-    subiu $sp, $sp, 4                      #     print_int(value);
-    sw $s0, 0($sp)                         #     saved = saved + 1;
-    # save args                            # }
+normal_fn_call_1:                          # 
+    # save used s registers to stack       # 
+    subiu $sp, $sp, 4                      # 
+    sw $s0, 0($sp)                         # 
+    # save args                            # 
     move $t0 $a0                           # 
                                            # 
     # body                                 # 

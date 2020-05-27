@@ -8,12 +8,12 @@
 .end_macro                    # 
 .text                         # 
 j translate_skip_1            # fn translate(message: [*]u8, key: [*]u8) void {
-translate_call_1:             #     \# get length of key
-    # save args               #     var key_len: u32 = 0;
-    move $t0 $a0              #     loop {
-    move $t1 $a1              #         if key[key_len] == 0 {break;}
-                              #         key_len = key_len + 1;
-    # body                    #     }
+translate_call_1:             # 
+    # save args               # 
+    move $t0 $a0              # 
+    move $t1 $a1              # 
+                              # 
+    # body                    # 
     # get length of key       # 
     li $t2 0                  #     var key_len: u32 = 0;
     loop_start_1:             #     loop {
