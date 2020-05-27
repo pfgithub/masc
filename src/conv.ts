@@ -228,7 +228,9 @@ function evalDerefExpr(
             } else {
                 tmp = index.reg;
             }
-            lines.push(`${instr} ${marked} (${tmp})`);
+            let added = gentemp();
+            lines.push(`add ${markOut(added)}, ${tmp} ${from.reg}`);
+            lines.push(`${instr} ${marked} (${added})`);
         }
     }
     return mode === "addressof"

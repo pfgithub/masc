@@ -14,7 +14,7 @@ inline fn syscall() void {
 }
 
 inline fn read_string(buffer: [*]u8, max_len: u32) void {
-	$v0 = 4;
+	$v0 = 8;
 	$a0 = buffer;
 	$a1 = max_len;
 	syscall();
