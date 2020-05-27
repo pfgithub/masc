@@ -8,6 +8,7 @@ export function compile(srcraw: string, filename: string): string {
     let mair = mipsgen(baseast);
     let res = finalize(mair);
     inputCode = new Error("uh oh") as any;
+    usedLoopNames = {};
     return res;
 }
 
