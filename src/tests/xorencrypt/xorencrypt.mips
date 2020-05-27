@@ -31,8 +31,7 @@ read_until_newline_call_1:
         la $t0 1($t0)       #         addr = &addr[1];
     j loop_start_1
     loop_end_1:
-    li $t1 0                #     save addr[0] = 0;
-    sb $t1 ($t0)
+    sb $zero ($t0)          #     save addr[0] = 0;
     
     # reload used s registers from stack
     lw $s0, 0($sp)
@@ -45,7 +44,7 @@ translate_call_1:
     
     # body
     # get length of key
-    li $t0 0                #     var key_len: u32 = 0;
+    move $t0 $zero          #     var key_len: u32 = 0;
     loop_start_2:           #     loop {
         add $t1, $t0 $a1    #         if key[key_len] == 0 {break;}
         lb $t1 ($t1)
@@ -54,20 +53,19 @@ translate_call_1:
     j loop_start_2
     loop_end_2:
     # encrypt/decrypt message
-    li $t1 0                #     var index: u32 = 0;
     loop_start_3:           #     loop {
-        add $t2, $t1 $a0    #         if message[index] == 0 {break;}
+        add $t1, $zero $a0  #         if message[index] == 0 {break;}
+        lb $t1 ($t1)
+        beqz $t1, loop_end_3
+        add $t1, $zero $a0  #         save message[index] = message[index] ^ key[index % key_len];
+        lb $t1 ($t1)
+        remu $t2, $zero $t0
+        add $t2, $t2 $a1
         lb $t2 ($t2)
-        beqz $t2, loop_end_3
-        add $t2, $t1 $a0    #         save message[index] = message[index] ^ key[index % key_len];
-        lb $t2 ($t2)
-        remu $t3, $t1 $t0
-        add $t3, $t3 $a1
-        lb $t3 ($t3)
-        xor $t2 $t2 $t3
-        add $t3, $t1 $a0
-        sb $t2 ($t3)
-        addu $t1, $t1 1     #         index = index + 1;
+        xor $t1 $t1 $t2
+        add $t2, $zero $a0
+        sb $t1 ($t2)
+        addu $zero, $zero 1 #         index = index + 1;
     j loop_start_3
     loop_end_3:
     

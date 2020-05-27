@@ -48,7 +48,7 @@ let userRegisters: string[] = [
     "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
 ];
 
-let matchIRRegisters = /%%:(?:out\:)?register:(..):%%/g;
+let matchIRRegisters = /%%:(?:out\:)?register:(.+?):%%/g;
 
 type Type =
     | { type: "u32" }
@@ -109,6 +109,8 @@ function evalExprAllowImmediate(
 let anytype = (): Type => ({ type: "any" });
 
 function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
+    var imm = getImmediate(vnm, expr);
+    if (imm && imm.value === 0) return { reg: genreg("zero"), typ: anytype() };
     if (expr.expr === "register") {
         let type: Type =
             expr.register === "sp"
@@ -790,10 +792,10 @@ function registerAllocate(rawIR: string[]): string[] {
                     return deflt;
                 },
             );
-            let regs = [...line.matchAll(/%%:register:(..):%%/g)].map(
+            let regs = [...line.matchAll(/%%:register:(.+?):%%/g)].map(
                 q => q[1],
             );
-            let outRegs = [...line.matchAll(/%%:out:register:(..):%%/g)].map(
+            let outRegs = [...line.matchAll(/%%:out:register:(.+?):%%/g)].map(
                 q => q[1],
             );
 
