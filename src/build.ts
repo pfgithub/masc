@@ -702,7 +702,7 @@ function binaryexpr(
     });
 }
 
-l.set("addsubexpr", binaryexpr(["+", "-"], o.modexpr, "(a·b)·c", "mix"));
+l.set("addsubexpr", binaryexpr(["+", "-"], o.muldivexpr, "(a·b)·c", "mix"));
 l.set("muldivexpr", binaryexpr(["*", "/"], o.modexpr, "(a·b)·c", "mix"));
 l.set("modexpr", binaryexpr(["%"], o.bitwiseexpr, "(a·b)·c", "mix"));
 l.set("bitwiseexpr", binaryexpr(["^"], o.prefixexpr, "(a·b)·c", "nomix"));

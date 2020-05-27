@@ -33,12 +33,12 @@ translate_call_1:              #
         beq $t4 10, loop_end_2 # 
         add $t4, $t3 $t0       #         save message[index] = message[index] ^ key[index % key_len];
         lb $t4 ($t4)           # 
-        remu $t2, $t3 $t2      # 
-        add $t1, $t2 $t1       # 
-        lb $t1 ($t1)           # 
-        xor $t1 $t4 $t1        # 
-        add $t0, $t3 $t0       # 
-        sb $t1 ($t0)           # 
+        remu $t5, $t3 $t2      # 
+        add $t5, $t5 $t1       # 
+        lb $t5 ($t5)           # 
+        xor $t4 $t4 $t5        # 
+        add $t5, $t3 $t0       # 
+        sb $t4 ($t5)           # 
         addu $t3, $t3 1        #         index = index + 1;
     j loop_start_2             # 
     loop_end_2:                # 

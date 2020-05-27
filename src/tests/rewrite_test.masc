@@ -1,0 +1,65 @@
+var x: u32 = 0;
+var y: u32 = 1;
+x = 2;
+y = 0;
+$a0 = y;
+$a0 = x;
+\
+var a: u32 = 12;
+var b: u32 = 24;
+var c: u32 = a + b;
+// c should be t0
+\
+var a_: u32 = 12;
+var b_: u32 = 24;
+var c_: u32 = a_ + b_;
+c_ = a_ + b_;
+\
+var d: u32 = 0;
+var e: u32 = 1;
+var f: u32 = 2;
+e = e + 1;
+f = d + e;
+\
+var d_: u32 = 0;
+var e_: u32 = 1;
+var f_: u32 = 2;
+e_ = e_ + 1;
+f_ = d_ + e_;
+f_ = d_ + e_;
+\
+var g: u32 = 0;
+loop {
+    var h: u32 = g;
+}
+\
+var l: u32 = 0;
+var m: u32 = 5;
+var n: u32 = l + m;
+m = 5;
+n = l + m;
+\
+var i: u32 = 0;
+loop {
+    var k: u32 = 5;
+    var j: u32 = i + k;
+}
+
+
+
+
+
+
+// var t0: u32 = 0;
+// var t1: u32 = 0;
+// var t2: u32 = 0;
+// var t3: u32 = 0;
+// var _: u32 = 0;
+// _ = _;
+// _ = t3;
+// _ = t2;
+// _ = t1;
+// _ = t0;
+// \
+// var x: u32 = t0 * t1 + t2 * t3;
+// _ = t0;

@@ -498,7 +498,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
 
     for (let line of bodyCodeAllocated) {
         for (let register of line.matchAll(matchIRRegisters)) {
-            if (register[1].startsWith("s")) {
+            if (register[1].match(/^s[0-7]$/)) {
                 referencedSVariables.add(register[1]);
             }
         }
@@ -517,7 +517,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     });
 
     // 2-3: save args, run fn body
-    bodyLines.push(...compileAllocated(precompiledLines));
+    bodyLines.push(...compileAllocated(bodyCodeAllocated));
 
     // 4: reload s variables from stack
     bodyLines.push("");
@@ -737,17 +737,29 @@ function registerAllocate(rawIR: string[]): string[] {
         variableID: string,
         startIndex: number,
         endIndexExclusive: number,
-        unavailableRegisters: Set<string>,
+        finalUnavailable: Set<string>,
         visitedMarks: { [key: string]: true },
     ) => {
-        let unavRegisIfReferenced = new Set<string>();
-        for (let j = startIndex; j < endIndexExclusive; j++) {
-            let line = rawIR[j];
+        let varUnavs = new Set<string>();
+        let freePasses = new Set<string>();
+        let unavs: { [key: string]: Set<string> | undefined } = {};
+        let getUnav = (reg: string) => {
+            if (unavs[reg]) return unavs[reg]!;
+            unavs[reg] = new Set<string>([reg]);
+            return unavs[reg]!;
+        };
+        let allLines: { j: number; line: string }[] = rawIR
+            .slice(startIndex, endIndexExclusive)
+            .map((l, i) => ({ line: l, j: i + startIndex }));
+        while (true) {
+            if (allLines.length === 0) break;
+            let { j, line } = allLines.shift()!;
+            // console.log(variableID + "| [" + j + "]: " + line);
             // if line contains drop, add all listed registers to unavailable
             let clearMarkMatch = /%%{{MARK_CLEAR:(.+?)}}%%/.exec(line);
             if (clearMarkMatch) {
                 let clrs = clearMarkMatch[1].split(",");
-                clrs.forEach(clr => unavRegisIfReferenced.add(clr));
+                clrs.forEach(clr => varUnavs.add(clr));
                 continue;
             }
             let cfRevisitMatch = /%%{{controlflow_goto::(.+?)}}%%/.exec(line);
@@ -755,16 +767,10 @@ function registerAllocate(rawIR: string[]): string[] {
                 if (visitedMarks[cfRevisitMatch[1]]) continue;
                 visitedMarks[cfRevisitMatch[1]] = true;
                 let revisitStart = controlFlowMarks[cfRevisitMatch[1]]!;
-                console.log(
-                    "Now repeating. Current unavRegisIfReferenced: ",
-                    unavRegisIfReferenced,
-                );
-                solveVariableInternal(
-                    variableID,
-                    revisitStart,
-                    j + 1,
-                    unavailableRegisters,
-                    visitedMarks,
+                allLines.unshift(
+                    ...rawIR
+                        .slice(revisitStart, j)
+                        .map((l, i) => ({ line: l, j: i + revisitStart })),
                 );
                 continue;
             }
@@ -791,23 +797,36 @@ function registerAllocate(rawIR: string[]): string[] {
                 q => q[1],
             );
 
-            // if line contains this variable, move updated to unavailable
-            // _ = z
-            // eg _ = x + 5 + y + z
-            // y and z are moved to unavailable
-            if (line.includes("%%:variable:" + variableID + ":%%")) {
-                regs.map(reg => unavailableRegisters.add(reg));
-                for (let uur of unavRegisIfReferenced) {
-                    unavailableRegisters.add(uur);
+            if (line.includes("%%:out:variable:" + variableID + ":%%"))
+                for (let inreg of regs) {
+                    [...getUnav(inreg)].map(reg => {
+                        if (freePasses.has(reg)) finalUnavailable.add(reg);
+                        else freePasses.add(reg);
+                    });
                 }
-                unavRegisIfReferenced.clear(); // unnecessary but why not
+            else
+                for (let inreg of regs) {
+                    [...getUnav(inreg)].map(reg => finalUnavailable.add(reg));
+                }
+
+            for (let outReg of outRegs) {
+                // reset unav
+                getUnav(outReg).delete(outReg);
+                // x cannot be this reg
+                varUnavs.add(outReg);
             }
-            // if line outs to this variable (but the line does not include this variable), clear unavailable
-            else if (line.includes("%%:out:variable:" + variableID + ":%%")) {
-                unavRegisIfReferenced.clear();
-            } else {
-                outRegs.map(reg => unavRegisIfReferenced.add(reg));
-                regs.map(reg => unavailableRegisters.add(reg));
+
+            if (line.includes("%%:variable:" + variableID + ":%%")) {
+                [...varUnavs].map(reg => finalUnavailable.add(reg));
+            }
+
+            if (line.includes("%%:out:variable:" + variableID + ":%%")) {
+                // add new unavs
+                for (let inreg of regs) {
+                    getUnav(inreg).add(inreg);
+                }
+                // x can be anything again
+                varUnavs.clear();
             }
         }
     };
