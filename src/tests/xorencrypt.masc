@@ -44,7 +44,7 @@ fn translate(message: [*]u8, key: [*]u8) void {
 }
 
 $sp = $sp - 255;
-var key: [*]u8 = &$sp[128];
+var key: [*]u8 = $sp + 128;
 \print_str("Plain text:\n  ")
 read_string($sp, 128);
 \print_str("Key:\n  ")

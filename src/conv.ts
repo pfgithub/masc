@@ -192,7 +192,7 @@ function evalDerefExpr(
     if (from.typ.type !== "pointer" && from.typ.type !== "arrayptr")
         throw "never";
 
-    let size = sizeof(from.typ);
+    let size = sizeof(from.typ.child);
     let siz =
         size === 4
             ? "w"
@@ -479,6 +479,12 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
 
     precompiledLines.push("# body");
     precompiledLines.push(...mipsgen(fn.body, ivnm));
+    console.log(
+        "\n\n\n\n======== " +
+            fn.name +
+            " ========\n" +
+            precompiledLines.join("\n"),
+    );
     let bodyCodeAllocated = registerAllocate(precompiledLines);
     let referencedSVariables = new Set<string>();
 
