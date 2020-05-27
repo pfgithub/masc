@@ -615,22 +615,34 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                 requiresCode = false;
             }
 
-            if (line.condition === "==") {
+            let inverse = {
+                "==": "!=",
+                "!=": "==",
+                "<=": ">",
+                "<": ">=",
+                ">": "<=",
+                ">=": "<",
+            } as const;
+
+            let condition = requiresCode
+                ? inverse[line.condition]
+                : line.condition;
+            if (condition === "!=") {
                 if (right.reg === "0") code.push(`bnez ${left.reg}, ${lbl}`);
                 else code.push(`bne ${left.reg} ${right.reg}, ${lbl}`);
-            } else if (line.condition == "!=") {
+            } else if (condition == "==") {
                 if (right.reg === "0") code.push(`beqz ${left.reg}, ${lbl}`);
                 else code.push(`beq ${left.reg} ${right.reg}, ${lbl}`);
-            } else if (line.condition == ">=") {
+            } else if (condition == "<") {
                 code.push(`blt${u} ${left.reg} ${right.reg}, ${lbl}`);
-            } else if (line.condition == ">") {
+            } else if (condition == "<=") {
                 code.push(`ble${u} ${left.reg} ${right.reg}, ${lbl}`);
-            } else if (line.condition == "<") {
+            } else if (condition == ">=") {
                 code.push(`bge${u} ${left.reg} ${right.reg}, ${lbl}`);
-            } else if (line.condition == "<=") {
+            } else if (condition == ">") {
                 code.push(`bgt${u} ${left.reg} ${right.reg}, ${lbl}`);
             } else {
-                asun(line.condition);
+                asun(condition);
             }
             if (requiresCode) {
                 code.push(...rescode.map(l => "    " + l));

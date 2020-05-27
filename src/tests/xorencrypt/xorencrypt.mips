@@ -19,7 +19,7 @@ translate_call_1:             #
     loop_start_1:             #     loop {
         add $t3, $t2 $t1      #         if key[key_len] == 0 {break;}
         lb $t3 ($t3)          # 
-        bnez $t3, loop_end_1  # 
+        beqz $t3, loop_end_1  # 
         addu $t2, $t2 1       #         key_len = key_len + 1;
     j loop_start_1            # 
     loop_end_1:               # 
@@ -28,7 +28,7 @@ translate_call_1:             #
     loop_start_2:             #     loop {
         add $t4, $t3 $t0      #         if message[index] == 0 {break;}
         lb $t4 ($t4)          # 
-        bnez $t4, loop_end_2  # 
+        beqz $t4, loop_end_2  # 
         add $t4, $t3 $t0      #         save message[index] = message[index] ^ key[index % key_len];
         lb $t4 ($t4)          # 
         remu $t2, $t3 $t2     # 

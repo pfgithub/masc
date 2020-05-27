@@ -38,8 +38,8 @@ addu $s0, $s0 1                            # should_save = should_save + 1;
 li $t0 5                                   # var index: u32 = 5;
 loop_start_1:                              # loop {
     addu $t0, $t0 1                        #     index = index + 1;
-    bleu $t0 5, loop_end_1                 #     if index > 5 { break; }
-    bleu $t0 3, loop_start_1               #     if index > 3 { continue; }
+    bgtu $t0 5, loop_end_1                 #     if index > 5 { break; }
+    bgtu $t0 3, loop_start_1               #     if index > 3 { continue; }
     li $t1 6                               #     var insideLoop: u32 = 6;
 j loop_start_1                             # 
 loop_end_1:                                # 
