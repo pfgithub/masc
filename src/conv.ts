@@ -155,7 +155,84 @@ function sizeof(ta: Type): number {
     return asun(ta);
 }
 
+function markOut(reg: string) {
+    return reg.replace("%%:", "%%:out:");
+}
+
 type AOMode = "addressof" | "load" | "store";
+// store a = 5;
+// todo verify 5 is the right type?
+// var q: i32 = a.*
+// that works, store should too
+function evalDerefExpr(
+    outOrStoreTo: string,
+    _: "=",
+    dereferencingExpr: AstExpr,
+    mode: AOMode,
+    lines: string[],
+    vnm: VNM,
+): Type {
+    const derefExpr = dereferencingExpr;
+    if (derefExpr.expr !== "arrayindex" && derefExpr.expr !== "pointer")
+        throw new Error(
+            "Expected dereferencingexpr eg .* or [i], got " + derefExpr.expr,
+        );
+
+    let from = evalExprAnyOut(vnm, derefExpr.from, lines);
+    if (derefExpr.expr === "pointer") {
+        if (from.typ.type !== "pointer")
+            throw new Error(
+                "Can only dereference *pointer. got " + from.typ.type,
+            );
+    } else if (derefExpr.expr === "arrayindex") {
+        if (from.typ.type !== "arrayptr")
+            throw new Error("Can only index [*]pointer. got " + from.typ.type);
+    } else asun(derefExpr);
+    if (from.typ.type !== "pointer" && from.typ.type !== "arrayptr")
+        throw "never";
+
+    let size = sizeof(from.typ);
+    let siz =
+        size === 4
+            ? "w"
+            : size === 1
+            ? "b"
+            : // prettier-ignore
+              (() => {throw new Error("unsupported size " + size
+                      +  "; expected 1 or 4 byte size.", ); })();
+    let instr =
+        mode === "addressof"
+            ? "la"
+            : mode === "load"
+            ? "l" + siz
+            : mode === "store"
+            ? "s" + siz
+            : asun(mode);
+    let marked = mode === "store" ? outOrStoreTo : markOut(outOrStoreTo);
+    if (derefExpr.expr === "pointer") {
+        lines.push(`${instr} ${marked} (${from.reg})`);
+    } else {
+        let indexImmediate = getImmediate(vnm, derefExpr.index);
+        if (indexImmediate) {
+            let iim = indexImmediate.value;
+            let offset = iim * size;
+            lines.push(`${instr} ${marked} ${offset || ""}(${from.reg})`);
+        } else {
+            let index = evalExprAnyOut(vnm, derefExpr.index, lines);
+            if (index.typ.type !== "u32") throw new Error("Index must be u32");
+            let tmp = gentemp();
+            lines.push(`mulo ${tmp}, ${index.reg} ${size}`);
+            lines.push(`${instr} ${marked} (${tmp})`);
+        }
+    }
+    return mode === "addressof"
+        ? from.typ
+        : mode === "load"
+        ? from.typ.child
+        : mode === "store"
+        ? from.typ.child // for typechecking help
+        : asun(mode);
+}
 
 // if an expected return value arg is passed, it might be useful
 function evalExpr(
@@ -163,9 +240,8 @@ function evalExpr(
     expr: AstExpr,
     outraw: string,
     lines: string[],
-    aomode: AOMode = "load",
 ): Type {
-    let out = outraw.replace("%%:", "%%:out:");
+    let out = markOut(outraw);
     // run an expr and set resregister to the expr result;
     let simpleRegister = evalExprAnyOut(vnm, expr);
     if (simpleRegister !== exprNotAvailable) {
@@ -189,58 +265,9 @@ function evalExpr(
 
         return resType;
     } else if (expr.expr === "addressof") {
-        let resType = evalExpr(vnm, expr.of, outraw, lines, "addressof");
-        return resType;
+        return evalDerefExpr(outraw, "=", expr.of, "addressof", lines, vnm);
     } else if (expr.expr === "arrayindex" || expr.expr === "pointer") {
-        let from = evalExprAnyOut(vnm, expr.from, lines);
-        if (expr.expr === "pointer") {
-            if (from.typ.type !== "pointer")
-                throw new Error(
-                    "Can only dereference *pointer. got " + from.typ.type,
-                );
-        } else if (from.typ.type !== "arrayptr")
-            throw new Error("Can only index [*]pointer. got " + from.typ.type);
-        let size = sizeof(from.typ);
-        let siz =
-            size === 4
-                ? "w"
-                : size === 1
-                ? "b"
-                : // prettier-ignore
-                  (() => {throw new Error("unsupported size " + size
-                  +  "; expected 1 or 4 byte size.", ); })();
-        let lw =
-            aomode === "addressof"
-                ? "la"
-                : aomode === "load"
-                ? "l" + siz
-                : aomode === "store"
-                ? "s" + siz
-                : asun(aomode);
-        if (expr.expr === "pointer") {
-            lines.push(`${lw} ${out} (${from.reg})`);
-        } else {
-            let indexImmediate = getImmediate(vnm, expr.index);
-            if (indexImmediate) {
-                let iim = indexImmediate.value;
-                let offset = iim * size;
-                lines.push(`${lw} ${out} ${offset || ""}(${from.reg})`);
-            } else {
-                let index = evalExprAnyOut(vnm, expr.index, lines);
-                if (index.typ.type !== "u32")
-                    throw new Error("Index must be u32");
-                let tmp = gentemp();
-                lines.push(`mulo ${tmp}, ${index.reg} ${size}`);
-                lines.push(`${lw} ${out} (${tmp})`);
-            }
-        }
-        return aomode === "addressof"
-            ? from.typ
-            : aomode === "load"
-            ? from.typ.child
-            : aomode === "store"
-            ? { type: "void" }
-            : asun(aomode);
+        return evalDerefExpr(outraw, "=", expr, "load", lines, vnm);
     } else if (expr.expr === "undefined") {
         return anytype();
     } else if (expr.expr === "call") {
@@ -603,9 +630,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                 throw new Error("unused value " + res.typ);
         } else if (line.ast === "save") {
             let value = evalExprAnyOut(vnm, line.value, code);
-            let res = evalExpr(vnm, line.saveloc, value.reg, code, "store");
-            if (res.type !== "void")
-                throw new Error("error bad oh no " + res.type);
+            let rest = evalDerefExpr(
+                value.reg,
+                "=",
+                line.saveloc,
+                "store",
+                code,
+                vnm,
+            );
+            matchTypes(value.typ, rest);
         } else {
             asun(line);
         }
