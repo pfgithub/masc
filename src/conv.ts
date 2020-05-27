@@ -752,18 +752,7 @@ function registerAllocate(rawIR: string[]): string[] {
                 );
                 continue;
             }
-            // if line contains this variable, move updated to unavailable
-            if (line.includes("%%:variable:" + variableID + ":%%")) {
-                for (let uur of unavRegisIfReferenced) {
-                    unavailableRegisters.add(uur);
-                }
-                unavRegisIfReferenced.clear(); // unnecessary but why not
-                continue;
-            }
-            if (line.includes("%%:out:variable:" + variableID + ":%%")) {
-                unavRegisIfReferenced.clear();
-                continue;
-            }
+
             // if line contains other register, add to updatedUnavailable
             line = line.replace(
                 /%%:((?:out\:)?)variable:(.+?):%%/g,
@@ -785,8 +774,25 @@ function registerAllocate(rawIR: string[]): string[] {
             let outRegs = [...line.matchAll(/%%:out:register:(..):%%/g)].map(
                 q => q[1],
             );
-            regs.map(reg => unavailableRegisters.add(reg));
-            outRegs.map(reg => unavRegisIfReferenced.add(reg));
+
+            // if line contains this variable, move updated to unavailable
+            // _ = z
+            // eg _ = x + 5 + y + z
+            // y and z are moved to unavailable
+            if (line.includes("%%:variable:" + variableID + ":%%")) {
+                regs.map(reg => unavailableRegisters.add(reg));
+                for (let uur of unavRegisIfReferenced) {
+                    unavailableRegisters.add(uur);
+                }
+                unavRegisIfReferenced.clear(); // unnecessary but why not
+            }
+            // if line outs to this variable (but the line does not include this variable), clear unavailable
+            else if (line.includes("%%:out:variable:" + variableID + ":%%")) {
+                unavRegisIfReferenced.clear();
+            } else {
+                outRegs.map(reg => unavRegisIfReferenced.add(reg));
+                regs.map(reg => unavailableRegisters.add(reg));
+            }
         }
     };
     let solveVariable = (variableID: string, startIndex: number) => {

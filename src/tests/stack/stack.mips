@@ -9,8 +9,8 @@ lw $t1 4($t0)    # var value: u32 = stack_value[1];
 la $t1 4($t0)    # var pointer: [*]u32 = &stack_value[1];
                  # 
 li $t1 5         # var index: u32 = 5;
-mulo $t0, $t1 4  # var unused: u32 = stack_value[index];
-add $t0, $t0 $t0 # 
+mulo $t2, $t1 4  # var unused: u32 = stack_value[index];
+add $t0, $t2 $t0 # 
 lw $t0 ($t0)     # 
                  # 
 move $t0 $sp     # var stack_u8: [*]u8 = $sp;
