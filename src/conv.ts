@@ -816,6 +816,10 @@ function registerAllocate(rawIR: string[]): string[] {
                 let unavailable = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
+                // TODO if this is a move instruction, if allowed, use the register in the second half of the move instruction and delete the instruction
+                // EG: move {somevar} $a0
+                // if $a0 is allowed
+                // set somevar = a0
                 registerNameMap[letr] = reg;
                 return "%%:" + om + "register:" + reg + ":%%";
             }),
