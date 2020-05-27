@@ -7,8 +7,8 @@ li $v0 36                                  #
 move $a0 $t0                               # 
 syscall                                    # 
                                            # 
-j normal_fn_skip_0                         # fn normal_fn(value: u32) void {
-normal_fn_call_0:                          #     var temp: u32 = 5;
+j normal_fn_skip_1                         # fn normal_fn(value: u32) void {
+normal_fn_call_1:                          #     var temp: u32 = 5;
     # save used s registers to stack       #     var saved: u32 = 6;
     subiu $sp, $sp, 4                      #     print_int(value);
     sw $s0, 0($sp)                         #     saved = saved + 1;
@@ -28,20 +28,20 @@ normal_fn_call_0:                          #     var temp: u32 = 5;
     lw $s0, 0($sp)                         # 
     addiu $sp, $sp, 4                      # 
 jr $ra                                     # 
-normal_fn_skip_0:                          # 
+normal_fn_skip_1:                          # 
 li $s0 25                                  # var should_save: u32 = 25;
 li $a0 25                                  # normal_fn(25);
-jal normal_fn_call_0                       # 
+jal normal_fn_call_1                       # 
 li $a0 34                                  # normal_fn(34);
-jal normal_fn_call_0                       # 
+jal normal_fn_call_1                       # 
 addu $s0, $s0 1                            # should_save = should_save + 1;
 li $t0 5                                   # var index: u32 = 5;
-loop_continue_0:                           # loop {
+loop_continue_1:                           # loop {
     addu $t0, $t0 1                        #     index = index + 1;
-    bleu $t0 5, loop_end_0                 #     if index > 5 { break; }
-    bleu $t0 3, loop_continue_0            #     if index > 3 { continue; }
+    bleu $t0 5, loop_end_1                 #     if index > 5 { break; }
+    bleu $t0 3, loop_continue_1            #     if index > 3 { continue; }
     li $t1 6                               #     var insideLoop: u32 = 6;
-loop_end_0:                                # 
+loop_end_1:                                # 
 syscall                                    # syscall
                                            # 
 li $t0 0                                   # var t0: u32 = 0;
@@ -90,11 +90,11 @@ li $t0 8                                   # var z: u32 = 8;
 addu $s1, $s1 1                            # y = y + 1;
 addu $s0, $s0 3                            # x = x + 3;
 li $s0 8                                   # var expct_s0: u32 = 8;
-bne $t0 8, if_end_0                        # if z == 8 {
+bne $t0 8, if_end_3                        # if z == 8 {
     li $s1 5                               #     var expct_s1: u32 = 5;
     li $v0 4                               #     $v0 = 4;
     la $a0, helloworldtxt                  # 
     syscall                                #     syscall();
     addu $s1, $s1 1                        #     expct_s1 = expct_s1 + 1;
-if_end_0:                                  # 
+if_end_3:                                  # 
 addu $s0, $s0 3                            # expct_s0 = expct_s0 + 3;

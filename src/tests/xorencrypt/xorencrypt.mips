@@ -1,0 +1,73 @@
+.macro print_str (%str)       # 
+    .data                     # 
+        string: .asciiz %str  # 
+    .text                     # 
+        li $v0, 4             # 
+        la $a0, string        # 
+        syscall               # 
+.end_macro                    # 
+.text                         # 
+j translate_skip_1            # fn translate(message: [*]u8, key: [*]u8) void {
+translate_call_1:             #     \# get length of key
+    # save args               #     var key_len: u32 = 0;
+    move $t0 $a0              #     loop {
+    move $t0 $a1              #         if key[key_len] == 0 {break;}
+                              #         key_len = key_len + 1;
+    # body                    #     }
+    # get length of key       # 
+    li $t0 0                  #     var key_len: u32 = 0;
+    loop_continue_2:          #     loop {
+        mulo $t1, $t0 4       #         if key[key_len] == 0 {break;}
+        lw $t1 ($t1)          # 
+        bnez $t1, loop_end_2  # 
+        addu $t0, $t0 1       #         key_len = key_len + 1;
+    loop_end_2:               # 
+    # encrypt/decrypt message # 
+    li $t0 0                  #     var index: u32 = 0;
+    loop_continue_3:          #     loop {
+        mulo $t1, $t0 4       #         if message[index] == 0 {break;}
+        lw $t1 ($t1)          # 
+        bnez $t1, loop_end_3  # 
+        mulo $t1, $t0 4       #         save message[index] = message[index] ^ key[index % key_len];
+        lw $t1 ($t1)          # 
+        remu $t2, $t0 $t0     # 
+        mulo $t2, $t2 4       # 
+        lw $t1 ($t2)          # 
+        xor $t1 $t1 $t1       # 
+        mulo $t1, $t0 4       # 
+        sw $t1 ($t1)          # 
+        addu $t0, $t0 1       #         index = index + 1;
+    loop_end_3:               # 
+                              # 
+    addiu $sp, $sp, 0         # 
+jr $ra                        # 
+translate_skip_1:             # 
+subu $sp, $sp 255             # $sp = $sp - 255;
+la $s0 512($sp)               # var key: [*]u8 = &$sp[128];
+print_str("Plain text:\n  ")  # 
+move $t0 $sp                  # read_string($sp, 128);
+li $t1 128                    # 
+li $v0 4                      # 
+move $a0 $t0                  # 
+move $a1 $t1                  # 
+syscall                       # 
+print_str("Key:\n  ")         # 
+move $t0 $s0                  # read_string(key, 128);
+li $t1 128                    # 
+li $v0 4                      # 
+move $a0 $t0                  # 
+move $a1 $t1                  # 
+syscall                       # 
+move $a0 $sp                  # translate($sp, key);
+move $a1 $s0                  # 
+jal translate_call_1          # 
+print_str("Cipher text:\n  ") # 
+move $t0 $sp                  # print_string($sp);
+li $v0 4                      # 
+move $a0 $t0                  # 
+syscall                       # 
+print_str("Decrypted:\n  ")   # 
+move $t0 $sp                  # print_string($sp);
+li $v0 4                      # 
+move $a0 $t0                  # 
+syscall                       # 

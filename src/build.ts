@@ -326,7 +326,7 @@ type P = { pos: Pos };
 export type AstType =
     | (P & {
           type: "builtin";
-          kind: "u32" | "i32" | "any" | "void";
+          kind: "u32" | "i32" | "u8" | "any" | "void";
       })
     | (P & { type: "pointer"; child: AstType })
     | (P & { type: "arrayptr"; child: AstType });
@@ -335,7 +335,7 @@ export type AstVar =
     | (P & { expr: "variable"; var: string })
     | (P & { expr: "register"; register: string });
 
-export type BinOp = "+" | "-";
+export type BinOp = "+" | "-" | "^" | "%" | "*" | "/";
 export type AstExpr =
     | AstVar
     | (P & { expr: "immediate"; value: string })
@@ -658,7 +658,7 @@ l.set(
 l.set(
     "type",
     or(
-        or("u32", "i32", "any", "void").scb((r, pos) =>
+        or("u32", "i32", "u8", "any", "void").scb((r, pos) =>
             mktype(r.data.val, pos),
         ),
 
@@ -673,30 +673,39 @@ l.set(
 
 l.set(
     "expr",
-    p(o.addexpr).scb(r => r[0].val),
+    p(o.addsubexpr).scb(r => r[0].val),
 );
 
-l.set(
-    "addexpr",
-    p(
-        o.prefixexpr,
+function binaryexpr(
+    options: BinOp[],
+    next: Parse,
+    direction: "(a·b)·c" | "a·(b·c)" | "a·b",
+    mixing: "mix" | "nomix",
+) {
+    return p(
+        next,
         star(
             p(
                 _,
-                or("+", "-").scb(r => r.data.val),
+                or(...options).scb(r => r.data.val),
                 _,
-                o.prefixexpr,
+                next,
             ).scb(r => ({ op: r[1].val, val: r[3].val } as any)),
         ).scb(r => r.map(q => q.val)),
     ).scb((r, pos) => {
         let [one, two] = [r[0].val, r[1].val];
         if (two.length === 0) return one;
-        if (two.length !== 1) throw new Error("multi-part add niy");
+        if (two.length !== 1) throw new Error("multi-part binaryexpr niy");
         let twoz = two[0] as any;
 
         return mkbinexpr(twoz.op, one, twoz.val, pos);
-    }),
-);
+    });
+}
+
+l.set("addsubexpr", binaryexpr(["+", "-"], o.modexpr, "(a·b)·c", "mix"));
+l.set("muldivexpr", binaryexpr(["*", "/"], o.modexpr, "(a·b)·c", "mix"));
+l.set("modexpr", binaryexpr(["%"], o.bitwiseexpr, "(a·b)·c", "mix"));
+l.set("bitwiseexpr", binaryexpr(["^"], o.prefixexpr, "(a·b)·c", "nomix"));
 
 // a.b().c() doesn't exist, so this
 // is just identifier(args,)

@@ -26,8 +26,8 @@ function genreg(regnme: string): string {
 let usedLoopNames: { [key: string]: number } = {};
 function genlabel(name: string): string {
     if (usedLoopNames[name]) return name + "_" + ++usedLoopNames[name];
-    usedLoopNames[name]++;
-    return name + "_0";
+    usedLoopNames[name] = 1;
+    return name + "_" + usedLoopNames[name];
 }
 
 // because prettier doesn't know how to format code sensibly:
@@ -54,6 +54,7 @@ let matchIRRegisters = /%%:(?:out\:)?register:(..):%%/g;
 type Type =
     | { type: "u32" }
     | { type: "i32" }
+    | { type: "u8" }
     | { type: "any" }
     | { type: "void" }
     | { type: "pointer"; child: Type }
@@ -149,6 +150,7 @@ function sizeof(ta: Type): number {
     if (ta.type === "any") throw new Error("Cannot sizeof any");
     if (ta.type === "u32") return 4;
     if (ta.type === "i32") return 4;
+    if (ta.type === "u8") return 1;
     if (ta.type === "void") return 0;
     if (ta.type === "pointer") return 4;
     if (ta.type === "arrayptr") return 4;
@@ -220,8 +222,13 @@ function evalDerefExpr(
         } else {
             let index = evalExprAnyOut(vnm, derefExpr.index, lines);
             if (index.typ.type !== "u32") throw new Error("Index must be u32");
-            let tmp = gentemp();
-            lines.push(`mulo ${tmp}, ${index.reg} ${size}`);
+            let tmp: string;
+            if (size != 1) {
+                tmp = gentemp();
+                lines.push(`mulo ${tmp}, ${index.reg} ${size}`);
+            } else {
+                tmp = index.reg;
+            }
             lines.push(`${instr} ${marked} (${tmp})`);
         }
     }
@@ -254,9 +261,26 @@ function evalExpr(
     } else if (expr.expr === "op") {
         let a = evalExprAnyOut(vnm, expr.left, lines);
         let b = evalExprAllowImmediate(vnm, expr.right, lines);
-        let base = ({ "+": "add", "-": "sub" } as const)[expr.op];
-
         let resType = matchTypes(a.typ, b.typ);
+
+        if (expr.op === "^") {
+            if (resType.type === "u8" || resType.type === "u32") {
+                lines.push(`xor ${out} ${a.reg} ${b.reg}`);
+            } else {
+                throw new Error("unsupported type " + resType.type);
+            }
+            return resType;
+        }
+
+        // all must support [] and []u
+        let base = ({
+            "+": "add",
+            "-": "sub",
+            "*": "mulo",
+            "/": "div",
+            "%": "rem",
+        } as const)[expr.op];
+
         if (resType.type === "u32" || resType.type === "arrayptr")
             lines.push(`${base}u ${out}, ${a.reg} ${b.reg}`);
         else if (resType.type === "i32")
@@ -555,6 +579,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             let conditionType = matchTypes(left.typ, right.typ);
             let u: string;
             if (conditionType.type === "u32") u = "u";
+            else if (conditionType.type === "u8") u = "u";
             else if (conditionType.type === "i32") u = "";
             else throw new Error("unsupported if type " + conditionType);
             // this would be much more fun to code in zig
