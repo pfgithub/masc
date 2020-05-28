@@ -1,0 +1,5 @@
+var x: u32 = 0;
+var y: u32 = x;
+x = 5;
+y = x;
+// huh, surprising. I thought this wasn't going to work right.

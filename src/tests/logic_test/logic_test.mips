@@ -1,0 +1,4 @@
+move $t0 $zero # var x: u32 = 0;
+move $t0 $t0   # var y: u32 = x;
+li $t0 5       # x = 5;
+move $t0 $t0   # y = x;
