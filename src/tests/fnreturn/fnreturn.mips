@@ -7,36 +7,46 @@
         syscall
 .end_macro
 .text
-j returns_skip_1    # fn returns(innum: u32) i32 {
-returns_call_1:
-    # save args
-    
+# ====================
+# jal call_returns
+# args:
+#   $a0: innum - u32
+# return:
+#    $t0: i32
+# ====================
+j skip_returns
+call_returns:
     # body
-    bne $a0 1, if_end_1#     if innum == 1 {return 15;}
-        li $t0 15   #                    return 15;
+    bne $a0 1, if_end
+        li $t0 15
         jr $ra
-    if_end_1:
-    li $t0 34       #     return 34;
+    if_end:
+    li $t0 34
     jr $ra
 jr $ra
-returns_skip_1:
-j noreturn_skip_1   # fn noreturn() void {}
-noreturn_call_1:
+skip_returns:
+# ====================
+# jal call_noreturn
+# args: none
+# return: none
+# ====================
+j skip_noreturn
+call_noreturn:
     # body
 jr $ra
-noreturn_skip_1:
+skip_noreturn:
 
-move $t1 $zero      # var result1: i32 = inline_returns(0);
+move $t1 $zero
 bne $t1 1, if_end_2
     li $t1 12
-    j inline_returns_return_1
+    j inline_returns_return
 if_end_2:
 li $t1 25
-j inline_returns_return_1
-inline_returns_return_1:
+j inline_returns_return
+inline_returns_return:
 move $t2 $t1
 write_str("expected 25: ")
-move $t1 $t2        # write_int(result1);
+move $t1 $t2
 li $v0 1
 move $a0 $t1
 syscall
@@ -44,11 +54,11 @@ move $t1 $t2
 move $t1 $t2
 write_str("\n")
 
-li $a0 1            # var result2: i32 = returns(1);
-jal returns_call_1
+li $a0 1
+jal call_returns
 move $t1 $t0
 write_str("expected 15: ")
-move $t1 $t1        # write_int(result2);
+move $t1 $t1
 li $v0 1
 move $a0 $t1
 syscall
@@ -56,14 +66,14 @@ move $t1 $t2
 move $t1 $t2
 write_str("\n")
 
-jal noreturn_call_1 # noreturn();
+jal call_noreturn
 move $t1 $t0
 
-move $a0 $zero      # var result3: i32 = returns(0);
-jal returns_call_1
+move $a0 $zero
+jal call_returns
 move $t1 $t0
 write_str("expected 34: ")
-move $t0 $t1        # write_int(result3);
+move $t0 $t1
 li $v0 1
 move $a0 $t0
 syscall
@@ -71,17 +81,17 @@ move $t0 $t1
 move $t0 $t1
 write_str("\n")
 
-li $t0 1            # var result4: i32 = inline_returns(1);
-bne $t0 1, if_end_3
+li $t0 1
+bne $t0 1, if_end_4
     li $t0 12
     j inline_returns_return_2
-if_end_3:
+if_end_4:
 li $t0 25
 j inline_returns_return_2
 inline_returns_return_2:
 move $t1 $t0
 write_str("expected 12: ")
-move $t0 $t1        # write_int(result4);
+move $t0 $t1
 li $v0 1
 move $a0 $t0
 syscall

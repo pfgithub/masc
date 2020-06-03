@@ -25,15 +25,20 @@ function genreg(regnme: string): string {
     return "%%:register:" + regnme + ":%%";
 }
 let usedLoopNames: { [key: string]: number } = {};
-function mklabel(name: string) {
+type LabelDetails = {
+    def: string;
+    ref: string;
+    raw: string;
+};
+function mklabel(name: string): LabelDetails {
     let nme: string;
-    if (usedLoopNames[name]) nme = name + "_" + ++usedLoopNames[name];
-    else {
-        usedLoopNames[name] = 1;
-        nme = name + "_" + usedLoopNames[name];
+    if (usedLoopNames[name]) {
+        nme = name + "_" + ++usedLoopNames[name];
+        if (usedLoopNames[nme]) nme = mklabel(nme).raw; // yes ok this is good wcgw
+    } else {
+        nme = name;
     }
-    if (usedLoopNames[nme]) nme = mklabel(nme).raw; // yes ok this is good wcgw
-    usedLoopNames[nme] = 1;
+    usedLoopNames[name] = (usedLoopNames[name] || 0) + 1;
     return {
         def: "%%:label:" + nme + ":%%",
         ref: "%%:ref:label:" + nme + ":%%",
@@ -426,6 +431,27 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
 
 let argNames = ["a0", "a1", "a2", "a3"];
 
+function printType(type: Type): string {
+    if (
+        type.type === "u32" ||
+        type.type === "i32" ||
+        type.type === "u8" ||
+        type.type === "void"
+    ) {
+        return type.type;
+    }
+    if (type.type === "arrayptr") {
+        return "[*]" + printType(type.child);
+    }
+    if (type.type === "pointer") {
+        return "*" + printType(type.child);
+    }
+    if (type.type === "any") {
+        return "word";
+    }
+    return asun(type);
+}
+
 function createNormalFn(fn: FnAst, vnm: VNM) {
     // create a normal fn
     let returnType = evalType(fn.type);
@@ -433,7 +459,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
         typ: evalType(arg.type),
         name: arg.name,
     }));
-    let startLabel = mklabel(fn.name + "_call");
+    let startLabel = mklabel("call_" + fn.name);
     vnm.setfn(fn.name, {
         call: (args, argvnm, returnTo, reslines) => {
             if (args.length !== expctArgs.length)
@@ -455,7 +481,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             return returnType;
         },
         real: {
-            startLabelDef: startLabel.def,
+            startLabel: startLabel,
             body: fn.body,
             name: fn.name,
             args: expctArgs,
@@ -468,7 +494,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
 // also, fn bodies should not have access to outside variables (their vnm should have all the compiletime values but no runtime values. maybe add an extra continueRuntimeValues option in vnm that disables parent checking for variables?)
 type RealFnInfo = {
     name: string;
-    startLabelDef: string;
+    startLabel: LabelDetails;
     body: Ast[];
     args: {
         typ: Type;
@@ -510,9 +536,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
 
     let precompiledLines: string[] = [];
 
-    if (fn.args.length > 0) precompiledLines.push("# save args");
     precompiledLines.push(...argsetLines);
-    if (fn.args.length > 0) precompiledLines.push("");
 
     precompiledLines.push("# body");
     precompiledLines.push(...mipsgen(fn.body, ivnm));
@@ -551,17 +575,40 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     });
     if (svars.length > 0) bodyLines.push("addiu $sp, $sp, " + svars.length * 4);
 
-    let endLabels = mklabel(fn.name + "_skip");
+    let endLabel = mklabel("skip_" + fn.name);
+
+    rescode.push(
+        "# ====================",
+        "# jal " + fn.startLabel.raw + "",
+        "# args:" + (fn.args.length === 0 ? " none" : ""),
+        ...fn.args.map(
+            (arg, i) =>
+                "#   $" +
+                argNames[i] +
+                ": " +
+                arg.name +
+                " - " +
+                printType(arg.typ),
+        ),
+        ...(
+            "# return:" +
+            (fn.returntype.type === "void"
+                ? " none"
+                : "\n#    $t0: " + printType(fn.returntype))
+        ).split("\n"),
+        "# ====================",
+    );
+
     // jump over fn
-    rescode.push("j " + endLabels.ref);
+    rescode.push("j " + endLabel.ref);
     // start label
-    rescode.push(fn.startLabelDef + ":" + commentSeparator);
+    rescode.push(fn.startLabel.def + ":" + commentSeparator);
     // body code
     rescode.push(...bodyLines.map(l => "    " + l));
     // return
     rescode.push("jr $ra");
     // fn end
-    rescode.push(endLabels.def + ":");
+    rescode.push(endLabel.def + ":");
 }
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
@@ -949,20 +996,20 @@ function commentate(code: string[]): string[] {
     // TODO: comment separator is a pretty bad way of matching
     //       lines with source code
     let lsplits = code.map(l => l.split(commentSeparator));
-    let maxLineLen = 12;
-    for (let [code, comment] of lsplits) {
-        if (!comment) continue;
-        let tsc = /^ */.exec(comment)![0].length;
-        let rl = code.length - tsc + 1;
-        if (rl > maxLineLen) maxLineLen = rl;
-    }
-    let resLines: string[] = [];
-    for (let [code, comment] of lsplits) {
-        if (comment)
-            resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
-        else resLines.push(code);
-    }
-    return resLines;
+    // let maxLineLen = 12;
+    // for (let [code, comment] of lsplits) {
+    //     if (!comment) continue;
+    //     let tsc = /^ */.exec(comment)![0].length;
+    //     let rl = code.length - tsc + 1;
+    //     if (rl > maxLineLen) maxLineLen = rl;
+    // }
+    // let resLines: string[] = [];
+    // for (let [code, comment] of lsplits) {
+    //     if (comment)
+    //         resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
+    //     else resLines.push(code);
+    // }
+    return lsplits.map(l => l[0]); // commentSeparator is a waste of time rn
 }
 function finalize(rawIR: string[]): string {
     let txt = cleanupUnreachable(compileAllocated(registerAllocate(rawIR)));
