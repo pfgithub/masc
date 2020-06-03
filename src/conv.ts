@@ -771,27 +771,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         } else {
             asun(line);
         }
-        let spaceCount = 0;
-        for (let i = line.pos.start.index - 1; true; i--) {
-            if (i < 0 || inputCode[i] === "\n") break;
-            spaceCount++;
-        }
-        let srccode = (
-            " ".repeat(spaceCount) +
-            inputCode.substring(line.pos.start.index, line.pos.end.index)
-        ).split("\n");
-        let skipcomments = false;
-        code.some((lne, i) => {
-            // distribute source code over these lines evenly
-            if (lne.includes(commentSeparator)) {
-                finalResultCode.push(lne);
-                skipcomments = true; // do not continue past a preset comment seperator
-            } else {
-                let codeText = srccode[i] || "";
-                finalResultCode.push(
-                    lne + commentSeparator + (skipcomments ? "" : codeText),
-                );
-            }
+        code.forEach((lin, i) => {
+            finalResultCode.push((i === code.length - 1 ? "" : " ") + lin);
         });
         // if (code.length > 0)
         //     for (let i = code.length; i < srccode.length; i++) {
