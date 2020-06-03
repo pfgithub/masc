@@ -46,9 +46,8 @@ move $s0 $v0
 print_str("Number 2:\n  ")
 li $v0 5
 syscall
-move $t0 $v0
 move $a0 $s0
-move $a1 $t0
+move $a1 $v0
 jal call_GCD
 move $s0 $v0
 

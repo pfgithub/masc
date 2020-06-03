@@ -816,7 +816,10 @@ function registerAllocate(rawIR: string[]): string[] {
             let clearMarkMatch = /%%{{MARK_CLEAR:(.+?)}}%%/.exec(line);
             if (clearMarkMatch) {
                 let clrs = clearMarkMatch[1].split(",");
-                clrs.forEach(clr => varUnavs.add(clr));
+                clrs.forEach(clr => {
+                    varUnavs.add(clr);
+                    getUnav(clr).clear();
+                });
                 continue;
             }
             let cfRevisitMatch = /%%{{controlflow_goto::(.+?)}}%%/.exec(line);
@@ -920,17 +923,16 @@ function registerAllocate(rawIR: string[]): string[] {
                     /%%:variable:(.+?):%%/g,
                     (_, q) =>
                         registerNameMap[q]
-                            ?
-                              "%%:register:" +
-                              registerNameMap[q] +
-                              ":%%"
+                            ? "%%:register:" + registerNameMap[q] + ":%%"
                             : _,
                 );
                 let moveInstruction = tempReplaced.match(
                     /^\s*move[\s,]+%%:out:variable:(.+?):%%[\s,]+%%:register:(.+?):%%\s*/,
                 );
                 if (moveInstruction && moveInstruction[1] === letr) {
+                    console.log("Wanting to save into " + moveInstruction[2]);
                     if (!unavailable.has(moveInstruction[2])) {
+                        console.log("\\ Allowed!");
                         reg = moveInstruction[2];
                         markDelete[i] = true;
                     }
