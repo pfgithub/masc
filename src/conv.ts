@@ -477,7 +477,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             reslines.push(
                 "%%{{MARK_CLEAR:" + regExpansions.call.join(",") + "}}%%",
             );
-            let returnReg = genreg("t0");
+            let returnReg = genreg("v0");
             reslines.push("move " + returnTo + " " + returnReg);
             return returnType;
         },
@@ -510,9 +510,9 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     let ivnm = makeVariableNameMap(vnm, false);
 
     ivnm.setFnReturn((result, lines) => {
-        let rest = evalExpr(ivnm, result, genreg("t0"), lines);
+        let rest = evalExpr(ivnm, result, genreg("v0"), lines);
         matchTypes(rest, fn.returntype);
-        // caller should extract out t0
+        // caller should extract out v0
         lines.push("jr $ra");
     });
 
@@ -595,7 +595,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
             "# return:" +
             (fn.returntype.type === "void"
                 ? " none"
-                : "\n#    $t0: " + printType(fn.returntype))
+                : "\n#    $v0: " + printType(fn.returntype))
         ).split("\n"),
         "# ====================",
     );

@@ -14,7 +14,7 @@ j main
 #   $a0: x - i32
 #   $a1: y - i32
 # return:
-#    $v0: i32
+#    $t0: i32
 # ====================
 call_GCD:
     # body
@@ -36,7 +36,7 @@ call_GCD:
         ble $a1 0, loop_end
     j loop_start
     loop_end:
-    move $v0 $a0
+    move $t0 $a0
     jr $ra
 main:
 print_str("Number 1:\n  ")
@@ -46,11 +46,10 @@ move $s0 $v0
 print_str("Number 2:\n  ")
 li $v0 5
 syscall
-move $t0 $v0
 move $a0 $s0
-move $a1 $t0
+move $a1 $v0
 jal call_GCD
-move $s0 $v0
+move $s0 $t0
 
 print_str("GCD:\n  ")
 li $v0 1
@@ -65,20 +64,23 @@ loop_start_2:
     ble $s0 0, if_end_8
         print_str(" ")
     if_end_8:
-    move $t0 $s0
+    move $t1 $s0
+    # unnecessary move
     li $v0 1
-    move $a0 $t0
+    move $a0 $t1
     syscall
     print_str(" | ")
     li $s3 -5
+    # uh oh... why s3? s1 and 2 should be available
+    # this sounds like a code deletion issue but idk
     loop_start_4:
         print_str("  ")
         move $a0 $s0
         move $a1 $s3
         jal call_GCD
-        move $t0 $v0
+        move $t1 $t0
         li $v0 1
-        move $a0 $t0
+        move $a0 $t1
         syscall
         add $s3, $s3 1
         bnez $s3, if_end_10
