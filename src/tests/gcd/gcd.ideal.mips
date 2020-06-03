@@ -14,7 +14,7 @@ j main
 #   $a0: x - i32
 #   $a1: y - i32
 # return:
-#    $t0: i32
+#    $v0: i32
 # ====================
 call_GCD:
     # body
@@ -36,64 +36,102 @@ call_GCD:
         ble $a1 0, loop_end
     j loop_start
     loop_end:
-    move $t0 $a0
+    move $v0 $a0
     jr $ra
 main:
 print_str("Number 1:\n  ")
+
 li $v0 5
 syscall
 move $s0 $v0
+# value1$s1 = read_int()
+
 print_str("Number 2:\n  ")
+
 li $v0 5
 syscall
+# value2$v0 = read_int()
+
 move $a0 $s0
 move $a1 $v0
 jal call_GCD
-move $s0 $t0
+move $s0 $v0
+# gcd$s0 = GCD(value1$s0, value2$v0)
 
 print_str("GCD:\n  ")
+
 li $v0 1
 move $a0 $s0
 syscall
+# print_int(gcd$s0)
 
 print_str("\nLoop Test:\n\n")
 print_str("   .  -5 -4 -3 -2 -1  1  2  3  4  5\n")
 print_str("  -|-------------------------------\n")
+
 li $s0 -5
+# x$s0 = -5
+
 loop_start_2:
+# loop {
     ble $s0 0, if_end_8
         print_str(" ")
     if_end_8:
-    move $t1 $s0
-    # unnecessary move
+    # if x$s0 > 0 {print_str(" ");}
+    
     li $v0 1
-    move $a0 $t1
+    move $a0 $s0
     syscall
+    # print_int(x$s0)
+    
     print_str(" | ")
+    
     li $s3 -5
-    # uh oh... why s3? s1 and 2 should be available
-    # this sounds like a code deletion issue but idk
+    # y$s3 = -5
+    # uh oh! this should be s1, not s3
+    # register allocation bug
+    
     loop_start_4:
+    # loop {
         print_str("  ")
+        
         move $a0 $s0
         move $a1 $s3
         jal call_GCD
-        move $t1 $t0
+        move $t0 $v0
+        # gcd$t0 = GCD(x$s0, y$s3)
+        
         li $v0 1
-        move $a0 $t1
+        move $a0 $t0
         syscall
+        # print_int(gcd$t0)
+        
         add $s3, $s3 1
+        # y$s3 += 1
+        
         bnez $s3, if_end_10
             add $s3, $s3 1
         if_end_10:
+        # if y$s3 == 0 {y$s3 += 1}
+        
         bgt $s3 5, loop_end_4
+        # if y$s3 > 5 {break;}
     j loop_start_4
     loop_end_4:
+    # }
+    
     print_str("\n")
+    
     add $s0, $s0 1
+    # x$s0 += 1
+    
     bnez $s0, if_end_14
         add $s0, $s0 1
     if_end_14:
+    # if x$s0 == 0 {x$s0 += 1}
+    
     bgt $s0 5, loop_end_2
+    # if x$s0 > 5 {break;}
 j loop_start_2
 loop_end_2:
+# }
