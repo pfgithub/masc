@@ -25,10 +25,20 @@ function genreg(regnme: string): string {
     return "%%:register:" + regnme + ":%%";
 }
 let usedLoopNames: { [key: string]: number } = {};
-function genlabel(name: string): string {
-    if (usedLoopNames[name]) return name + "_" + ++usedLoopNames[name];
-    usedLoopNames[name] = 1;
-    return name + "_" + usedLoopNames[name];
+function mklabel(name: string) {
+    let nme: string;
+    if (usedLoopNames[name]) nme = name + "_" + ++usedLoopNames[name];
+    else {
+        usedLoopNames[name] = 1;
+        nme = name + "_" + usedLoopNames[name];
+    }
+    if (usedLoopNames[nme]) nme = mklabel(nme).raw; // yes ok this is good wcgw
+    usedLoopNames[nme] = 1;
+    return {
+        def: "%%:label:" + nme + ":%%",
+        ref: "%%:ref:label:" + nme + ":%%",
+        raw: nme,
+    };
 }
 
 // because prettier doesn't know how to format code sensibly:
@@ -86,6 +96,7 @@ let commentSeparator = "%%__COMMENT_SEP__%%";
 
 type ExprRetV = { typ: Type; reg: string };
 
+// I'm keeping the    vnm    here because immediate may include comptime constants in the future
 function getImmediate(vnm: VNM, expr: AstExpr): undefined | { value: number } {
     if (expr.expr === "immediate") {
         return { value: +expr.value };
@@ -380,14 +391,14 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
     }));
     vnm.setfn(fn.name, {
         call: (args, argvnm, returnTo, reslines) => {
-            let returnMark = genlabel(fn.name + "_return");
+            let returnMark = mklabel(fn.name + "_return");
 
             let nvnm = makeVariableNameMap(vnm);
             let returnTemp = gentemp(); // this should hopefully get allocated to a valid register and the move instruction should be deleted
             nvnm.setFnReturn((result, lines) => {
                 let rest = evalExpr(nvnm, result, returnTemp, lines);
                 matchTypes(type, rest);
-                lines.push("j " + returnMark);
+                lines.push("j " + returnMark.ref);
             });
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
@@ -406,7 +417,7 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     l => l.split(commentSeparator)[0],
                 ),
             );
-            reslines.push(returnMark + ":"); // todo remove unused labels
+            reslines.push(returnMark.def + ":"); // todo remove unused labels
             reslines.push("move " + returnTo + " " + returnTemp);
             return type;
         },
@@ -422,7 +433,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
         typ: evalType(arg.type),
         name: arg.name,
     }));
-    let startLabelName = genlabel(fn.name + "_call");
+    let startLabel = mklabel(fn.name + "_call");
     vnm.setfn(fn.name, {
         call: (args, argvnm, returnTo, reslines) => {
             if (args.length !== expctArgs.length)
@@ -435,7 +446,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
                 let typ = evalExpr(argvnm, arg, genreg(argNames[i]), reslines);
                 matchTypes(typ, expctArg.typ);
             });
-            reslines.push("jal " + startLabelName);
+            reslines.push("jal " + startLabel.ref);
             reslines.push(
                 "%%{{MARK_CLEAR:" + regExpansions.call.join(",") + "}}%%",
             );
@@ -444,7 +455,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             return returnType;
         },
         real: {
-            startLabel: startLabelName,
+            startLabelDef: startLabel.def,
             body: fn.body,
             name: fn.name,
             args: expctArgs,
@@ -457,7 +468,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
 // also, fn bodies should not have access to outside variables (their vnm should have all the compiletime values but no runtime values. maybe add an extra continueRuntimeValues option in vnm that disables parent checking for variables?)
 type RealFnInfo = {
     name: string;
-    startLabel: string;
+    startLabelDef: string;
     body: Ast[];
     args: {
         typ: Type;
@@ -540,17 +551,17 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     });
     if (svars.length > 0) bodyLines.push("addiu $sp, $sp, " + svars.length * 4);
 
-    let endLabel = genlabel(fn.name + "_skip");
+    let endLabels = mklabel(fn.name + "_skip");
     // jump over fn
-    rescode.push("j " + endLabel);
+    rescode.push("j " + endLabels.ref);
     // start label
-    rescode.push(fn.startLabel + ":" + commentSeparator);
+    rescode.push(fn.startLabelDef + ":" + commentSeparator);
     // body code
     rescode.push(...bodyLines.map(l => "    " + l));
     // return
     rescode.push("jr $ra");
     // fn end
-    rescode.push(endLabel + ":");
+    rescode.push(endLabels.def + ":");
 }
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
@@ -612,7 +623,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             //    parser though and I've already done that twice and
             //    am working on a third
 
-            let lbl = genlabel("if_end");
+            let lbl = mklabel("if_end").ref;
             let requiresCode = true;
 
             let rescode = mipsgen(line.code, vnm); // TODO pass in variables
@@ -623,7 +634,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                     .slice(1)
                     .join(" ")
                     .split(commentSeparator)[0];
-                lbl = jumpinstr;
+                lbl = jumpinstr; // already a ref label so ok
+                // isn't it "fun" using strings instead of a real type system?
                 requiresCode = false;
             }
 
@@ -662,19 +674,19 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             }
         } else if (line.ast === "loop") {
             /// continueLabel = genlabel(loop_continue);
-            let startLabel = genlabel("loop_start");
-            let endLabel = genlabel("loop_end");
+            let startLbl = mklabel("loop_start");
+            let endLbl = mklabel("loop_end");
 
             let vctx = makeVariableNameMap(vnm);
-            vctx.setLoop({ start: startLabel, end: endLabel });
+            vctx.setLoop({ start: startLbl.ref, end: endLbl.ref });
             let rescode = mipsgen(line.code, vctx);
 
-            code.push(startLabel + ":");
-            code.push("%%{{controlflow_mark::" + startLabel + "}}%%");
+            code.push(startLbl.def + ":");
+            code.push("%%{{controlflow_mark::" + startLbl.raw + "}}%%");
             code.push(...rescode.map(l => "    " + l));
-            code.push("%%{{controlflow_goto::" + startLabel + "}}%%");
-            code.push("j " + startLabel);
-            code.push(endLabel + ":" + commentSeparator);
+            code.push("%%{{controlflow_goto::" + startLbl.raw + "}}%%");
+            code.push("j " + startLbl.ref);
+            code.push(endLbl.def + ":" + commentSeparator);
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("continue not in loop");
@@ -891,7 +903,51 @@ function compileAllocated(registersOnlyIR: string[]) {
         .map(line => line.replace(matchIRRegisters, (_, q) => "$" + q))
         .filter(l => !l.trim().startsWith("%%{{"));
 }
+function cleanupUnreachable(allocatedIR: string[]) {
+    let clean = allocatedIR;
+    // remove pointless jumps (jump to label in next line)
+    let unreachable = false;
+    // spoiler for the future: this will remove eg macros if they are precompiled and don't have labels. it will do a lot of things. I want to rewrite this in zig. and hopefully use real datastructures instead of strings with magic in them.
+    clean.filter((l, i) => {
+        let line = l.trim();
+        if (line.match(/%%:label:.+?:%%:/)) {
+            unreachable = false;
+        }
+        let next = clean.find((q, m) => m > i && q) || ""; // 10/10 code here. very high quality. fast. clean. readable.
+        if (line.startsWith("j ")) {
+            let jloc = line.match(/%%:ref:label:(.+?):%%/);
+            if (!jloc) throw new Error("bad jump: `" + line + "`");
+            // remove all lines until next label (unreachable code)
+            unreachable = true;
+            // if next line is the label, remove the jump line
+            if (next.includes("%%:label:" + jloc[1] + ":%%:")) return false;
+        }
+        if (unreachable) return false;
+        return true;
+    });
+    // find used labels
+    let referencedLabels = new Set<string>();
+    for (let line of clean) {
+        let matches = line.matchAll(/%%:ref:label:(.+?):%%/g);
+        for (let match of matches) {
+            referencedLabels.add(match[1]);
+        }
+    }
+    let refdlbls = [...referencedLabels];
+    // remove unused labels and emit
+    return clean
+        .filter(line => {
+            let isLabel = line.match(/%%:label:(.+?):%%:/);
+            if (isLabel) {
+                return refdlbls.includes(isLabel[1]);
+            }
+            return true;
+        })
+        .map(l => l.replace(/%%:(?:ref:)?label:(.+?):%%/g, "$1"));
+}
 function commentate(code: string[]): string[] {
+    // TODO: comment separator is a pretty bad way of matching
+    //       lines with source code
     let lsplits = code.map(l => l.split(commentSeparator));
     let maxLineLen = 12;
     for (let [code, comment] of lsplits) {
@@ -909,6 +965,6 @@ function commentate(code: string[]): string[] {
     return resLines;
 }
 function finalize(rawIR: string[]): string {
-    let txt = compileAllocated(registerAllocate(rawIR));
+    let txt = cleanupUnreachable(compileAllocated(registerAllocate(rawIR)));
     return commentate(txt).join("\n");
 }

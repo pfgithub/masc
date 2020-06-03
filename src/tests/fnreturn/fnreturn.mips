@@ -40,9 +40,7 @@ move $t1 $t2        # write_int(result1);
 li $v0 1
 move $a0 $t1
 syscall
-syscall_return_1:
 move $t1 $t2
-write_int_return_1:
 move $t1 $t2
 write_str("\n")
 
@@ -54,9 +52,7 @@ move $t1 $t1        # write_int(result2);
 li $v0 1
 move $a0 $t1
 syscall
-syscall_return_2:
 move $t1 $t2
-write_int_return_2:
 move $t1 $t2
 write_str("\n")
 
@@ -71,9 +67,7 @@ move $t0 $t1        # write_int(result3);
 li $v0 1
 move $a0 $t0
 syscall
-syscall_return_3:
 move $t0 $t1
-write_int_return_3:
 move $t0 $t1
 write_str("\n")
 
@@ -91,8 +85,6 @@ move $t0 $t1        # write_int(result4);
 li $v0 1
 move $a0 $t0
 syscall
-syscall_return_4:
 move $t0 $t1
-write_int_return_4:
 move $t0 $t1
 write_str("\n")
