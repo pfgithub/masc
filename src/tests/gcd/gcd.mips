@@ -1,0 +1,104 @@
+.macro print_str (%str)
+    .data
+        string: .asciiz %str
+    .text
+        li $v0, 4
+        la $a0, string
+        syscall
+.end_macro
+.text
+j main
+# ====================
+# jal call_GCD
+# args:
+#   $a0: x - i32
+#   $a1: y - i32
+# return:
+#    $t0: i32
+# ====================
+call_GCD:
+    # body
+    bge $a0 0, if_end
+        sub $a0, $zero $a0
+    if_end:
+    bge $a1 0, if_end_2
+        sub $a1, $zero $a1
+    if_end_2:
+    bge $a0 $a1, if_end_4
+        move $t0 $a1
+        move $a1 $a0
+        move $a0 $t0
+    if_end_4:
+    loop_start:
+        rem $t0, $a0 $a1
+        move $a0 $a1
+        move $a1 $t0
+        ble $a1 0, loop_end
+    j loop_start
+    loop_end:
+    move $t0 $a0
+    jr $ra
+jr $ra
+main:
+print_str("Number 1:\n  ")
+li $v0 5
+syscall
+j read_int_return
+read_int_return:
+move $s0 $v0
+print_str("Number 2:\n  ")
+li $v0 5
+syscall
+j read_int_return_2
+read_int_return_2:
+move $t1 $v0
+move $a0 $s0
+move $a1 $t1
+jal call_GCD
+move $s0 $t0
+
+print_str("GCD:\n  ")
+move $t1 $s0
+li $v0 1
+move $a0 $t1
+syscall
+
+print_str("\nLoop Test:\n\n")
+print_str("   . -5 -4 -3 -2 -1  1  2  3  4  5\n")
+print_str("  -|------------------------------\n")
+li $s0 -5
+loop_start_2:
+    ble $s0 0, if_end_8
+        print_str(" ")
+    if_end_8:
+    move $t1 $s0
+    li $v0 1
+    move $a0 $t1
+    syscall
+    print_str(" | ")
+    li $s3 -5
+    loop_start_4:
+        print_str("  ")
+        move $a0 $s0
+        move $a1 $s3
+        jal call_GCD
+        move $t1 $t0
+        move $t1 $t1
+        li $v0 1
+        move $a0 $t1
+        syscall
+        add $s3, $s3 1
+        bnez $s3, if_end_10
+            add $s3, $s3 1
+        if_end_10:
+        bgt $s3 5, loop_end_4
+    j loop_start_4
+    loop_end_4:
+    print_str("\n")
+    add $s0, $s0 1
+    bnez $s0, if_end_14
+        add $s0, $s0 1
+    if_end_14:
+    bgt $s0 5, loop_end_2
+j loop_start_2
+loop_end_2:

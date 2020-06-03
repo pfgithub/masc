@@ -1,0 +1,94 @@
+\.macro print_str (%str)
+\    .data
+\        string: .asciiz %str
+\    .text
+\        li $v0, 4
+\        la $a0, string
+\        syscall
+\.end_macro
+\.text
+\j main
+
+inline fn syscall() void {
+	\syscall
+	!clear $call;
+}
+
+inline fn read_string(buffer: [*]u8, max_len: u32) void {
+	$v0 = 8;
+	$a0 = buffer;
+	$a1 = max_len;
+	syscall();
+}
+
+inline fn print_string(string: [*]u8) void {
+    $v0 = 4;
+    $a0 = string;
+    syscall();
+}
+
+inline fn read_int() i32 {
+	$v0 = 5;
+	syscall();
+	return $v0;
+}
+
+inline fn print_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+
+fn GCD(x: i32, y: i32) i32 {
+    if x < 0 {x = 0-x;}
+    if y < 0 {y = 0-y;}
+	if x < y {
+		var temp: i32 = y;
+		y = x;
+		x = temp;
+	}
+    loop {
+        var n: i32 = x % y;
+        x = y;
+        y = n;
+        if y <= 0 {break;}
+    }
+    return x;
+}
+
+\main:
+
+\print_str("Number 1:\n  ")
+var value1: i32 = read_int();
+\print_str("Number 2:\n  ")
+var value2: i32 = read_int();
+var gcd: i32 = GCD(value1, value2);
+\
+\print_str("GCD:\n  ")
+print_int(gcd);
+\
+\print_str("\nLoop Test:\n\n")
+
+\print_str("   . -5 -4 -3 -2 -1  1  2  3  4  5\n")
+\print_str("  -|------------------------------\n")
+var x: i32 = -5;
+loop {
+	if x > 0 {
+		\print_str(" ")
+	}
+	print_int(x);
+	\print_str(" | ")
+	var y: i32 = -5;
+	loop {
+		\print_str("  ")
+		var gcd: i32 = GCD(x, y);
+		print_int(gcd);
+		y = y + 1;
+		if y == 0 {y = y + 1;}
+		if y > 5 {break;}
+	}
+	\print_str("\n")
+	x = x + 1;
+	if x == 0 {x = x + 1;}
+	if x > 5 {break;}
+}

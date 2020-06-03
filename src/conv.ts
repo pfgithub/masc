@@ -644,9 +644,6 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                     "}}%%",
             );
         } else if (line.ast === "defvar") {
-            if (vnm.get(line.name)) {
-                throw new Error("var already exists");
-            }
             let tempname = gentemp();
             let defType = evalType(line.type);
             // right now this is only one way, it would also be useful to tell evalExpr about what type we expect (if we expect one)
@@ -877,8 +874,6 @@ function registerAllocate(rawIR: string[]): string[] {
             }
 
             if (line.includes("%%:variable:" + variableID + ":%%")) {
-                if (!variableIsUsedLater)
-                    console.log(line, "`" + variableID + "`");
                 variableIsUsedLater = true;
                 [...varUnavs].map(reg => finalUnavailable.add(reg));
             }

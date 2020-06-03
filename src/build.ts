@@ -855,7 +855,7 @@ l.set(
 );
 l.set(
     "immediateexpr",
-    regex(/^\d+/).scb(
+    regex(/^-?\d+/).scb(
         (kd, pos): AstExpr => ({ expr: "immediate", value: kd[0], pos }),
     ),
 );
