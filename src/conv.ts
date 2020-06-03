@@ -300,7 +300,7 @@ function evalExpr(
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
-        return ce.call(expr.args, vnm, lines);
+        return ce.call(expr.args, vnm, outraw, lines);
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -314,12 +314,10 @@ type LoopInfo = {
     end: string;
 };
 type FnInfo = {
-    call(args: AstExpr[], argvnm: VNM, res: string[]): Type;
+    call(args: AstExpr[], argvnm: VNM, returnTo: string, res: string[]): Type;
     real?: RealFnInfo;
 };
-type FnReturnInfo = {
-    return(value: AstExpr): void;
-};
+type FnReturn = (value: AstExpr, lines: string[]) => void;
 type VNM = {
     getfn: (key: string) => FnInfo | undefined;
     setfn(key: string, hndlr: FnInfo): void;
@@ -327,13 +325,15 @@ type VNM = {
     set: (key: string, value: VarInfo) => void;
     getLoop: () => LoopInfo | undefined;
     setLoop(nv: LoopInfo | undefined): void;
+    getFnReturn: () => FnReturn | undefined;
+    setFnReturn(nv: FnReturn | undefined): void;
 };
 function makeVariableNameMap(parent?: VNM, rtPrntAcss: boolean = true): VNM {
     let rta = rtPrntAcss;
     let map = new Map<string, VarInfo>();
     let fns = new Map<string, FnInfo>();
     let latestLoop: LoopInfo | undefined = undefined;
-    let latestFn: FnReturnInfo | undefined = undefined;
+    let latestFn: FnReturn | undefined = undefined;
     return {
         getfn(name) {
             return fns.get(name) || (parent ? parent.getfn(name) : undefined);
@@ -357,7 +357,17 @@ function makeVariableNameMap(parent?: VNM, rtPrntAcss: boolean = true): VNM {
             return latestLoop || (parent && rta ? parent.getLoop() : undefined);
         },
         setLoop(nv) {
+            if (latestLoop) throw new Error("override latest loop");
             latestLoop = nv;
+        },
+        getFnReturn() {
+            return (
+                latestFn || (parent && rta ? parent.getFnReturn() : undefined)
+            );
+        },
+        setFnReturn(nv) {
+            if (latestFn) throw new Error("override latest fn");
+            latestFn = nv;
         },
     };
 }
@@ -368,16 +378,17 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
         typ: evalType(arg.type),
         name: arg.name,
     }));
-    // let returnMark = genlabel(line.name + "_return");
     vnm.setfn(fn.name, {
-        call: (args, argvnm, reslines) => {
-            // might have to define a label and say where return
-            // should go here so if the inline fn has a return
-            // instr, it jumps to the right place instead of
-            // jring nowhere. also make sure to provide the
-            // type so the return instr can typecheck the thing
-            // it is passed.
+        call: (args, argvnm, returnTo, reslines) => {
+            let returnMark = genlabel(fn.name + "_return");
+
             let nvnm = makeVariableNameMap(vnm);
+            let returnTemp = gentemp(); // this should hopefully get allocated to a valid register and the move instruction should be deleted
+            nvnm.setFnReturn((result, lines) => {
+                let rest = evalExpr(nvnm, result, returnTemp, lines);
+                matchTypes(type, rest);
+                lines.push("j " + returnMark);
+            });
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
             expctArgs.forEach((expctArg, i) => {
@@ -395,7 +406,8 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     l => l.split(commentSeparator)[0],
                 ),
             );
-            // reslines.push(returnMark + ":"); // todo remove unused labels
+            reslines.push(returnMark + ":"); // todo remove unused labels
+            reslines.push("move " + returnTo + " " + returnTemp);
             return type;
         },
     });
@@ -412,7 +424,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
     }));
     let startLabelName = genlabel(fn.name + "_call");
     vnm.setfn(fn.name, {
-        call: (args, argvnm, reslines) => {
+        call: (args, argvnm, returnTo, reslines) => {
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
 
@@ -427,7 +439,8 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             reslines.push(
                 "%%{{MARK_CLEAR:" + regExpansions.call.join(",") + "}}%%",
             );
-            // result would be in $t0, $t1 if returning was supported;
+            let returnReg = genreg("t0");
+            reslines.push("move " + returnTo + " " + returnReg);
             return returnType;
         },
         real: {
@@ -435,6 +448,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             body: fn.body,
             name: fn.name,
             args: expctArgs,
+            returntype: returnType,
         },
     });
 }
@@ -449,12 +463,20 @@ type RealFnInfo = {
         typ: Type;
         name: string;
     }[];
+    returntype: Type;
 };
 function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     // make a new inner vnm that does not have access
     // to outer scope variables/loops/fn returns but does
     // have access
     let ivnm = makeVariableNameMap(vnm, false);
+
+    ivnm.setFnReturn((result, lines) => {
+        let rest = evalExpr(ivnm, result, genreg("t0"), lines);
+        matchTypes(rest, fn.returntype);
+        // caller should extract out t0
+        lines.push("jr $ra");
+    });
 
     let argsetLines: string[] = [];
     fn.args.forEach((arg, i) => {
@@ -483,19 +505,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
 
     precompiledLines.push("# body");
     precompiledLines.push(...mipsgen(fn.body, ivnm));
-    console.log(
-        "\n======== " +
-            fn.name +
-            " ========\n" +
-            commentate(precompiledLines).join("\n"),
-    );
     let bodyCodeAllocated = registerAllocate(precompiledLines);
-    console.log(
-        "\n======== " +
-            fn.name +
-            " ========\n" +
-            commentate(bodyCodeAllocated).join("\n"),
-    );
     let referencedSVariables = new Set<string>();
 
     for (let line of bodyCodeAllocated) {
@@ -673,6 +683,10 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("break not in loop");
             code.push("j " + lp.end);
+        } else if (line.ast === "return") {
+            let fnreturn = vnm.getFnReturn();
+            if (!fnreturn) throw new Error("return not in fn");
+            fnreturn(line.returnv, code);
         } else if (line.ast === "fn") {
             let fni = vnm.getfn(line.name);
             if (!fni)

@@ -267,6 +267,53 @@ function optional(user: User): Parse {
     );
 }
 
+function not(user: User): Parse {
+    let choice = real(user);
+    return mkprs(
+        (code, start) => {
+            let cpos = start;
+
+            let res = choice.parse(code, cpos);
+            if (res.error)
+                return {
+                    type: "required",
+                    error: false,
+                    val: undefined,
+                    pos: { start, end: start },
+                };
+            return {
+                error: true,
+                message: "`not` found",
+            };
+        },
+        () => "~" + choice.toString(),
+    );
+}
+
+function required(user: User): Parse {
+    let choice = real(user);
+    return mkprs(
+        (code, start) => {
+            let cpos = start;
+
+            let res = choice.parse(code, cpos);
+            if (res.error) return res;
+            if (res.pos.start.index === res.pos.end.index)
+                return {
+                    error: true,
+                    message: "required not found",
+                };
+            return {
+                type: "star",
+                error: false,
+                val: { item: res.val },
+                pos: { start, end: res.pos.end },
+            };
+        },
+        () => "!" + choice.toString(),
+    );
+}
+
 // fn custom(cb) return {parse: cb}
 
 function parser() {
@@ -372,6 +419,7 @@ export type Ast =
     | (P & { ast: "loop"; code: Ast[] })
     | (P & { ast: "break" })
     | (P & { ast: "continue" })
+    | (P & { ast: "return"; returnv: AstExpr })
     | (P & { ast: "save"; saveloc: AstExpr; value: AstExpr })
     | FnAst
     | (P & { ast: "expr"; expr: AstExpr });
@@ -417,7 +465,7 @@ l.set(
     ).scb(() => null as any),
 );
 let _ = o._;
-let _req = _; // TODO make this require at least one character
+let _req = required(_);
 
 //
 
@@ -499,6 +547,7 @@ l.set(
                 o.setvarlyn,
                 o.defvarlyn,
                 o.storelyn,
+                o.returnlyn,
             ).scb(r => r.data.val),
             _,
         ).scb(r => r[1].val),
@@ -585,7 +634,7 @@ l.set(
 );
 l.set(
     "looplyn",
-    p("loop", /*lockin*/ _, "{", o.code, "}").scb((r, pos) => ({
+    p("loop", _, "{", o.code, "}").scb((r, pos) => ({
         ast: "loop",
         code: (r[3].val as any) as Ast[],
         pos,
@@ -593,15 +642,23 @@ l.set(
 );
 l.set(
     "breaklyn",
-    p("break", /*lockin*/ _, ";").scb((r, pos) => ({
+    p("break", _, ";").scb((r, pos) => ({
         ast: "break",
         pos,
     })),
 );
 l.set(
     "continuelyn",
-    p("continue", /*lockin*/ _, ";").scb((r, pos) => ({
+    p("continue", _, ";").scb((r, pos) => ({
         ast: "continue",
+        pos,
+    })),
+);
+l.set(
+    "returnlyn",
+    p("return", _req, o.expr, _, ";").scb((r, pos) => ({
+        ast: "return",
+        returnv: r[2].val,
         pos,
     })),
 );

@@ -1,0 +1,54 @@
+\.macro write_str (%str)
+\    .data
+\        string: .asciiz %str
+\    .text
+\        li $v0, 4
+\        la $a0, string
+\        syscall
+\.end_macro
+\.text
+
+inline fn syscall() void {
+	\syscall
+	!clear $call;
+}
+
+inline fn write_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+
+inline fn inline_returns(innum: u32) i32 {
+    if innum == 1 {return 12;}
+    return 25;
+}
+
+fn returns(innum: u32) i32 {
+    if innum == 1 {return 15;}
+    return 34;
+}
+
+fn noreturn() void {}
+\
+var result1: i32 = inline_returns(0);
+\write_str("expected 25: ")
+write_int(result1);
+\write_str("\n")
+\
+var result2: i32 = returns(1);
+\write_str("expected 15: ")
+write_int(result2);
+\write_str("\n")
+\
+noreturn(); // make sure no unused move is generated
+\
+var result3: i32 = returns(0);
+\write_str("expected 34: ")
+write_int(result3);
+\write_str("\n")
+\
+var result4: i32 = inline_returns(1);
+\write_str("expected 12: ")
+write_int(result4);
+\write_str("\n")
