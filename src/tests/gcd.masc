@@ -59,18 +59,23 @@ fn GCD(x: i32, y: i32) i32 {
 \main:
 
 \print_str("Number 1:\n  ")
+!clear $call;
 var value1: i32 = read_int();
 \print_str("Number 2:\n  ")
+!clear $call;
 var value2: i32 = read_int();
 var gcd: i32 = GCD(value1, value2);
 \
 \print_str("GCD:\n  ")
+!clear $call;
 print_int(gcd);
 \
 \print_str("\nLoop Test:\n\n")
+!clear $call;
 
 \print_str("   . -5 -4 -3 -2 -1  1  2  3  4  5\n")
 \print_str("  -|------------------------------\n")
+!clear $call;
 var x: i32 = -5;
 loop {
 	if x > 0 {
@@ -78,6 +83,7 @@ loop {
 	}
 	print_int(x);
 	\print_str(" | ")
+	!clear $call;
 	var y: i32 = -5;
 	loop {
 		\print_str("  ")
@@ -88,6 +94,7 @@ loop {
 		if y > 5 {break;}
 	}
 	\print_str("\n")
+	!clear $call;
 	x = x + 1;
 	if x == 0 {x = x + 1;}
 	if x > 5 {break;}
