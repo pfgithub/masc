@@ -7,7 +7,8 @@
 \        syscall
 \.end_macro
 \.text
-
+\j main
+\
 inline fn syscall() void {
 	\syscall
 	!clear $call;
@@ -31,6 +32,7 @@ fn returns(innum: u32) i32 {
 
 fn noreturn() void {}
 \
+\main:
 var result1: i32 = inline_returns(0);
 \write_str("expected 25: ")
 write_int(result1);

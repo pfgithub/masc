@@ -7,6 +7,8 @@
         syscall
 .end_macro
 .text
+j main
+
 # ====================
 # jal call_returns
 # args:
@@ -14,7 +16,6 @@
 # return:
 #    $t0: i32
 # ====================
-j skip_returns
 call_returns:
     # body
     bne $a0 1, if_end
@@ -24,18 +25,16 @@ call_returns:
     li $t0 34
     jr $ra
 jr $ra
-skip_returns:
 # ====================
 # jal call_noreturn
 # args: none
 # return: none
 # ====================
-j skip_noreturn
 call_noreturn:
     # body
 jr $ra
-skip_noreturn:
 
+main:
 move $t1 $zero
 bne $t1 1, if_end_2
     li $t1 12

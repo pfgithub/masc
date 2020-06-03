@@ -1,5 +1,7 @@
 import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
+let enableEndLabel = false;
+
 var inputCode: string = undefined as any; // wow this is bad
 export function compile(srcraw: string, filename: string): string {
     let src = srcraw.split("\t").join("    ");
@@ -600,7 +602,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     );
 
     // jump over fn
-    rescode.push("j " + endLabel.ref);
+    if (enableEndLabel) rescode.push("j " + endLabel.ref);
     // start label
     rescode.push(fn.startLabel.def + ":" + commentSeparator);
     // body code
@@ -963,11 +965,12 @@ function cleanupUnreachable(allocatedIR: string[]) {
         let next = clean.find((q, m) => m > i && q) || ""; // 10/10 code here. very high quality. fast. clean. readable.
         if (line.startsWith("j ")) {
             let jloc = line.match(/%%:ref:label:(.+?):%%/);
-            if (!jloc) throw new Error("bad jump: `" + line + "`");
-            // remove all lines until next label (unreachable code)
-            unreachable = true;
-            // if next line is the label, remove the jump line
-            if (next.includes("%%:label:" + jloc[1] + ":%%:")) return false;
+            if (jloc) {
+                // remove all lines until next label (unreachable code)
+                unreachable = true;
+                // if next line is the label, remove the jump line
+                if (next.includes("%%:label:" + jloc[1] + ":%%:")) return false;
+            }
         }
         if (unreachable) return false;
         return true;
