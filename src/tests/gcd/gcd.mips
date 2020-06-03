@@ -46,21 +46,19 @@ move $s0 $v0
 print_str("Number 2:\n  ")
 li $v0 5
 syscall
-move $t1 $v0
 move $a0 $s0
-move $a1 $t1
+move $a1 $v0
 jal call_GCD
 move $s0 $t0
 
 print_str("GCD:\n  ")
-move $t1 $s0
 li $v0 1
-move $a0 $t1
+move $a0 $s0
 syscall
 
 print_str("\nLoop Test:\n\n")
-print_str("   . -5 -4 -3 -2 -1  1  2  3  4  5\n")
-print_str("  -|------------------------------\n")
+print_str("   .  -5 -4 -3 -2 -1  1  2  3  4  5\n")
+print_str("  -|-------------------------------\n")
 li $s0 -5
 loop_start_2:
     ble $s0 0, if_end_8
@@ -78,7 +76,6 @@ loop_start_2:
         move $a1 $s3
         jal call_GCD
         move $t1 $t0
-        move $t1 $t1
         li $v0 1
         move $a0 $t1
         syscall

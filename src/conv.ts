@@ -916,7 +916,17 @@ function registerAllocate(rawIR: string[]): string[] {
                 } = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
-                let moveInstruction = line.match(
+                let tempReplaced = line.replace(
+                    /%%:variable:(.+?):%%/g,
+                    (_, q) =>
+                        registerNameMap[q]
+                            ?
+                              "%%:register:" +
+                              registerNameMap[q] +
+                              ":%%"
+                            : _,
+                );
+                let moveInstruction = tempReplaced.match(
                     /^\s*move[\s,]+%%:out:variable:(.+?):%%[\s,]+%%:register:(.+?):%%\s*/,
                 );
                 if (moveInstruction && moveInstruction[1] === letr) {
