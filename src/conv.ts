@@ -950,12 +950,14 @@ function cleanupUnreachable(allocatedIR: string[]) {
     // remove pointless jumps (jump to label in next line)
     let unreachable = false;
     // spoiler for the future: this will remove eg macros if they are precompiled and don't have labels. it will do a lot of things. I want to rewrite this in zig. and hopefully use real datastructures instead of strings with magic in them.
-    clean.filter((l, i) => {
+    clean = clean.filter((l, i) => {
         let line = l.trim();
         if (line.match(/%%:label:.+?:%%:/)) {
             unreachable = false;
         }
-        let next = clean.find((q, m) => m > i && q) || ""; // 10/10 code here. very high quality. fast. clean. readable.
+        let next =
+            clean.find((q, m) => m > i && q && !q.trim().startsWith("%:%:")) ||
+            ""; // 10/10 code here. very high quality. fast. clean. readable.
         if (line.startsWith("j ")) {
             let jloc = line.match(/%%:ref:label:(.+?):%%/);
             if (jloc) {
@@ -963,6 +965,7 @@ function cleanupUnreachable(allocatedIR: string[]) {
                 unreachable = true;
                 // if next line is the label, remove the jump line
                 if (next.includes("%%:label:" + jloc[1] + ":%%:")) return false;
+                return true;
             }
         }
         if (unreachable) return false;
