@@ -952,23 +952,25 @@ function cleanupUnreachable(allocatedIR: string[]) {
     // spoiler for the future: this will remove eg macros if they are precompiled and don't have labels. it will do a lot of things. I want to rewrite this in zig. and hopefully use real datastructures instead of strings with magic in them.
     clean = clean.filter((l, i) => {
         let line = l.trim();
+        if (line.startsWith("#")) return true;
         if (line.match(/%%:label:.+?:%%:/)) {
             unreachable = false;
         }
+        if (unreachable) return false;
         let next =
             clean.find((q, m) => m > i && q && !q.trim().startsWith("%:%:")) ||
             ""; // 10/10 code here. very high quality. fast. clean. readable.
         if (line.startsWith("j ")) {
             let jloc = line.match(/%%:ref:label:(.+?):%%/);
             if (jloc) {
-                // remove all lines until next label (unreachable code)
-                unreachable = true;
                 // if next line is the label, remove the jump line
                 if (next.includes("%%:label:" + jloc[1] + ":%%:")) return false;
-                return true;
             }
         }
-        if (unreachable) return false;
+        if (line.startsWith("jr ") || line.startsWith("j ")) {
+            // remove all lines until next label (unreachable code)
+            unreachable = true;
+        }
         return true;
     });
     // find used labels

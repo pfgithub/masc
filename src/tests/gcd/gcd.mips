@@ -38,7 +38,6 @@ call_GCD:
     loop_end:
     move $t0 $a0
     jr $ra
-jr $ra
 main:
 print_str("Number 1:\n  ")
 li $v0 5
