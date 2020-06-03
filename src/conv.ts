@@ -101,6 +101,9 @@ x += 1;    // now actually sets x so t0 is not allowed
 
 let exprNotAvailable = ("%%__EXPR__NOT__AVAILABLE%%" as any) as ExprRetV;
 
+const specialstart = "%:%:%%__INDENT_START__%%:%:%";
+const specialend = "%:%:%%__INDENT_END__%%:%:%";
+
 type ExprRetV = { typ: Type; reg: string };
 
 // I'm keeping the    vnm    here because immediate may include comptime constants in the future
@@ -766,9 +769,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         } else {
             asun(line);
         }
-        code.forEach((lin, i) => {
-            finalResultCode.push((i === code.length - 1 ? "" : " ") + lin);
-        });
+        finalResultCode.push(specialstart, ...code, specialend);
         // if (code.length > 0)
         //     for (let i = code.length; i < srccode.length; i++) {
         //         finalResultCode.push("" + commentSeparator + srccode[i]);
@@ -990,23 +991,18 @@ function cleanupUnreachable(allocatedIR: string[]) {
         .map(l => l.replace(/%%:(?:ref:)?label:(.+?):%%/g, "$1"));
 }
 function commentate(code: string[]): string[] {
-    // TODO: comment separator is a pretty bad way of matching
-    //       lines with source code
-    // let lsplits = code.map(l => l.split(commentSeparator));
-    // let maxLineLen = 12;
-    // for (let [code, comment] of lsplits) {
-    //     if (!comment) continue;
-    //     let tsc = /^ */.exec(comment)![0].length;
-    //     let rl = code.length - tsc + 1;
-    //     if (rl > maxLineLen) maxLineLen = rl;
-    // }
-    // let resLines: string[] = [];
-    // for (let [code, comment] of lsplits) {
-    //     if (comment)
-    //         resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
-    //     else resLines.push(code);
-    // }
-    return code; // commentSeparator is a waste of time rn
+    let rescode: string[] = [];
+    let nextLineIs = 0;
+    for (let line of code) {
+        if (line.trim() === specialstart) {
+            nextLineIs++;
+        } else if (line.trim() === specialend) {
+            nextLineIs--;
+        } else {
+            rescode.push(line);
+        }
+    }
+    return rescode;
 }
 function finalize(rawIR: string[]): string {
     let txt = cleanupUnreachable(compileAllocated(registerAllocate(rawIR)));

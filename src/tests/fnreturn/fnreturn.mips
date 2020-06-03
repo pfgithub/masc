@@ -9,81 +9,81 @@
 .text
 j main
 
- # ====================
- # jal call_returns
- # args:
- #   $a0: innum - u32
- # return:
- #    $t0: i32
- # ====================
- call_returns:
-     # body
-      bne $a0 1, if_end
-           li $t0 15
-          jr $ra
-     if_end:
-      li $t0 34
-     jr $ra
- jr $ra
- # ====================
- # jal call_noreturn
- # args: none
- # return: none
- # ====================
- call_noreturn:
-     # body
- jr $ra
+# ====================
+# jal call_returns
+# args:
+#   $a0: innum - u32
+# return:
+#    $t0: i32
+# ====================
+call_returns:
+    # body
+    bne $a0 1, if_end
+        li $t0 15
+        jr $ra
+    if_end:
+    li $t0 34
+    jr $ra
+jr $ra
+# ====================
+# jal call_noreturn
+# args: none
+# return: none
+# ====================
+call_noreturn:
+    # body
+jr $ra
 
 main:
- move $t1 $zero
-  bne $t1 1, if_end_2
-       li $t1 12
-      j inline_returns_return
- if_end_2:
-  li $t1 25
- j inline_returns_return
- inline_returns_return:
+move $t1 $zero
+bne $t1 1, if_end_2
+    li $t1 12
+    j inline_returns_return
+if_end_2:
+li $t1 25
+j inline_returns_return
+inline_returns_return:
 move $t1 $t1
 write_str("expected 25: ")
- move $t1 $t1
- li $v0 1
- move $a0 $t1
-  syscall
+move $t1 $t1
+li $v0 1
+move $a0 $t1
+syscall
 write_str("\n")
 
- li $a0 1
- jal call_returns
+li $a0 1
+jal call_returns
 move $t1 $t0
 write_str("expected 15: ")
- move $t1 $t1
- li $v0 1
- move $a0 $t1
-  syscall
+move $t1 $t1
+li $v0 1
+move $a0 $t1
+syscall
 write_str("\n")
 
- jal call_noreturn
+jal call_noreturn
 
- move $a0 $zero
- jal call_returns
+move $a0 $zero
+jal call_returns
 write_str("expected 34: ")
- move $t0 $t0
- li $v0 1
- move $a0 $t0
-  syscall
+move $t0 $t0
+li $v0 1
+move $a0 $t0
+syscall
 write_str("\n")
 
- li $t0 1
-  bne $t0 1, if_end_4
-       li $t0 12
-      j inline_returns_return_2
- if_end_4:
-  li $t0 25
- j inline_returns_return_2
- inline_returns_return_2:
+li $t0 1
+bne $t0 1, if_end_4
+    li $t0 12
+    j inline_returns_return_2
+if_end_4:
+li $t0 25
+j inline_returns_return_2
+inline_returns_return_2:
 move $t0 $t0
 write_str("expected 12: ")
- move $t0 $t0
- li $v0 1
- move $a0 $t0
-  syscall
+move $t0 $t0
+li $v0 1
+move $a0 $t0
+syscall
 write_str("\n")
