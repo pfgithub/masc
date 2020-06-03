@@ -43,14 +43,12 @@ main:
   li $t1 25
  j inline_returns_return
  inline_returns_return:
-move $t2 $t1
+move $t1 $t1
 write_str("expected 25: ")
- move $t1 $t2
+ move $t1 $t1
  li $v0 1
  move $a0 $t1
   syscall
- move $t1 $t2
-move $t1 $t2
 write_str("\n")
 
  li $a0 1
@@ -61,23 +59,17 @@ write_str("expected 15: ")
  li $v0 1
  move $a0 $t1
   syscall
- move $t1 $t2
-move $t1 $t2
 write_str("\n")
 
  jal call_noreturn
-move $t1 $t0
 
  move $a0 $zero
  jal call_returns
-move $t1 $t0
 write_str("expected 34: ")
- move $t0 $t1
+ move $t0 $t0
  li $v0 1
  move $a0 $t0
   syscall
- move $t0 $t1
-move $t0 $t1
 write_str("\n")
 
  li $t0 1
@@ -88,12 +80,10 @@ write_str("\n")
   li $t0 25
  j inline_returns_return_2
  inline_returns_return_2:
-move $t1 $t0
+move $t0 $t0
 write_str("expected 12: ")
- move $t0 $t1
+ move $t0 $t0
  li $v0 1
  move $a0 $t0
   syscall
- move $t0 $t1
-move $t0 $t1
 write_str("\n")

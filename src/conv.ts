@@ -8,6 +8,7 @@ export function compile(srcraw: string, filename: string): string {
     inputCode = src;
     const baseast = parse(src, filename) as Ast[];
     let mair = mipsgen(baseast);
+    console.log("\n\n" + mair.join("\n") + "\n\n");
     let res = finalize(mair);
     inputCode = new Error("uh oh") as any;
     usedLoopNames = {};
@@ -99,7 +100,6 @@ x += 1;    // now actually sets x so t0 is not allowed
 */
 
 let exprNotAvailable = ("%%__EXPR__NOT__AVAILABLE%%" as any) as ExprRetV;
-let commentSeparator = "%%__COMMENT_SEP__%%";
 
 type ExprRetV = { typ: Type; reg: string };
 
@@ -318,7 +318,7 @@ function evalExpr(
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
-        return ce.call(expr.args, vnm, outraw, lines);
+        return ce.call(expr.args, vnm, out, lines);
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -419,11 +419,7 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     tempname: resvar,
                 });
             });
-            reslines.push(
-                ...mipsgen(fn.body, nvnm).map(
-                    l => l.split(commentSeparator)[0],
-                ),
-            );
+            reslines.push(...mipsgen(fn.body, nvnm));
             reslines.push(returnMark.def + ":"); // todo remove unused labels
             reslines.push("move " + returnTo + " " + returnTemp);
             return type;
@@ -604,7 +600,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     // jump over fn
     if (enableEndLabel) rescode.push("j " + endLabel.ref);
     // start label
-    rescode.push(fn.startLabel.def + ":" + commentSeparator);
+    rescode.push(fn.startLabel.def + ":");
     // body code
     rescode.push(...bodyLines.map(l => "    " + l));
     // return
@@ -635,7 +631,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
     for (let line of ast) {
         let code: string[] = [];
         if (line.ast === "ilasm") {
-            code.push(line.ilasm + commentSeparator);
+            code.push(line.ilasm);
         } else if (line.ast === "clear") {
             code.push(
                 "%%{{MARK_CLEAR:" +
@@ -681,8 +677,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
                     .trim()
                     .split(" ")
                     .slice(1)
-                    .join(" ")
-                    .split(commentSeparator)[0];
+                    .join(" ");
                 lbl = jumpinstr; // already a ref label so ok
                 // isn't it "fun" using strings instead of a real type system?
                 requiresCode = false;
@@ -735,7 +730,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             code.push(...rescode.map(l => "    " + l));
             code.push("%%{{controlflow_goto::" + startLbl.raw + "}}%%");
             code.push("j " + startLbl.ref);
-            code.push(endLbl.def + ":" + commentSeparator);
+            code.push(endLbl.def + ":");
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("continue not in loop");
@@ -809,7 +804,10 @@ function registerAllocate(rawIR: string[]): string[] {
         let allLines: { j: number; line: string }[] = rawIR
             .slice(startIndex, endIndexExclusive)
             .map((l, i) => ({ line: l, j: i + startIndex }));
+        let variableIsUsedLater = false;
+        let iterIndex = 0;
         while (true) {
+            iterIndex++;
             if (allLines.length === 0) break;
             let { j, line } = allLines.shift()!;
             // console.log(variableID + "| [" + j + "]: " + line);
@@ -875,6 +873,9 @@ function registerAllocate(rawIR: string[]): string[] {
             }
 
             if (line.includes("%%:variable:" + variableID + ":%%")) {
+                if (!variableIsUsedLater)
+                    console.log(line, "`" + variableID + "`");
+                variableIsUsedLater = true;
                 [...varUnavs].map(reg => finalUnavailable.add(reg));
             }
 
@@ -889,18 +890,19 @@ function registerAllocate(rawIR: string[]): string[] {
                 varUnavs.clear();
             }
         }
+        return variableIsUsedLater;
     };
     let solveVariable = (variableID: string, startIndex: number) => {
         let unavailableRegisters = new Set<string>([]);
         let visitedMarks: { [key: string]: true } = {};
-        solveVariableInternal(
+        let variableIsUsedLater = solveVariableInternal(
             variableID,
             startIndex,
             rawIR.length,
             unavailableRegisters,
             visitedMarks,
         );
-        return unavailableRegisters;
+        return { unavailableRegisters, variableIsUsedLater };
     };
     let registersOnlyIR: string[] = [];
     let markDelete: true[] = [];
@@ -909,7 +911,10 @@ function registerAllocate(rawIR: string[]): string[] {
             line.replace(/%%:((?:out\:)?)variable:(.+?):%%/g, (_, om, letr) => {
                 if (registerNameMap[letr])
                     return "%%:register:" + registerNameMap[letr] + ":%%";
-                let unavailable = solveVariable(letr, i);
+                let {
+                    unavailableRegisters: unavailable,
+                    variableIsUsedLater,
+                } = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
                 if (!reg) throw new Error("Out of registers!");
                 let moveInstruction = line.match(
@@ -918,6 +923,14 @@ function registerAllocate(rawIR: string[]): string[] {
                 if (moveInstruction && moveInstruction[1] === letr) {
                     if (!unavailable.has(moveInstruction[2])) {
                         reg = moveInstruction[2];
+                        markDelete[i] = true;
+                    }
+                }
+                let noSideEffectsStore = line.match(
+                    /^\s*move[\s,]+%%:out:variable:(.+?):%%/,
+                );
+                if (noSideEffectsStore && noSideEffectsStore[1] === letr) {
+                    if (!variableIsUsedLater) {
                         markDelete[i] = true;
                     }
                 }
@@ -979,7 +992,7 @@ function cleanupUnreachable(allocatedIR: string[]) {
 function commentate(code: string[]): string[] {
     // TODO: comment separator is a pretty bad way of matching
     //       lines with source code
-    let lsplits = code.map(l => l.split(commentSeparator));
+    // let lsplits = code.map(l => l.split(commentSeparator));
     // let maxLineLen = 12;
     // for (let [code, comment] of lsplits) {
     //     if (!comment) continue;
@@ -993,7 +1006,7 @@ function commentate(code: string[]): string[] {
     //         resLines.push(code.padEnd(maxLineLen, " ") + "# " + comment);
     //     else resLines.push(code);
     // }
-    return lsplits.map(l => l[0]); // commentSeparator is a waste of time rn
+    return code; // commentSeparator is a waste of time rn
 }
 function finalize(rawIR: string[]): string {
     let txt = cleanupUnreachable(compileAllocated(registerAllocate(rawIR)));
