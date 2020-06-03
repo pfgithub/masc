@@ -8,7 +8,7 @@ export function compile(srcraw: string, filename: string): string {
     inputCode = src;
     const baseast = parse(src, filename) as Ast[];
     let mair = mipsgen(baseast);
-    console.log("\n\n" + mair.join("\n") + "\n\n");
+    // console.log("\n\n" + mair.join("\n") + "\n\n");
     let res = finalize(mair);
     inputCode = new Error("uh oh") as any;
     usedLoopNames = {};
@@ -674,9 +674,12 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             let lbl = mklabel("if_end").ref;
             let requiresCode = true;
 
-            let rescode = mipsgen(line.code, vnm); // TODO pass in variables
-            if (rescode.length === 1 && rescode[0].trim().startsWith("j ")) {
-                let jumpinstr = rescode[0]
+            let rescode = mipsgen(line.code, vnm);
+            let smplcde = rescode.filter(
+                l => !l.startsWith("%:%:") && !l.startsWith("{{"),
+            );
+            if (smplcde.length === 1 && smplcde[0].trim().startsWith("j ")) {
+                let jumpinstr = smplcde[0]
                     .trim()
                     .split(" ")
                     .slice(1)

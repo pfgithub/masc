@@ -30,13 +30,9 @@ call_read_until_newline:
     move $t0 $s0
     loop_start:
         lb $t1 ($t0)
-        bne $t1 13, if_end
-            j loop_end
-        if_end:
+        beq $t1 13, loop_end
         lb $t1 ($t0)
-        bne $t1 10, if_end_2
-            j loop_end
-        if_end_2:
+        beq $t1 10, loop_end
         la $t0 1($t0)
     j loop_start
     loop_end:
@@ -60,9 +56,7 @@ call_translate:
     loop_start_2:
         add $t1, $t0 $a1
         lb $t1 ($t1)
-        bnez $t1, if_end_4
-            j loop_end_2
-        if_end_4:
+        beqz $t1, loop_end_2
         addu $t0, $t0 1
     j loop_start_2
     loop_end_2:
@@ -71,9 +65,7 @@ call_translate:
     loop_start_4:
         add $t2, $t1 $a0
         lb $t2 ($t2)
-        bnez $t2, if_end_6
-            j loop_end_4
-        if_end_6:
+        beqz $t2, loop_end_4
         add $t2, $t1 $a0
         lb $t2 ($t2)
         remu $t3, $t1 $t0
