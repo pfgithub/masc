@@ -1442,8 +1442,17 @@ function commentate(code: Code): string[] {
         l.value = l.assignto + l.value;
     }
 
+    let aboveused = false;
     let rcxt: string[] = resultComments.map(l => {
-        if (l.used) return l.indent + l.value.replace(" ", "|");
+        if (l.used)
+            return (
+                l.indent +
+                l.value.replace(
+                    " ",
+                    aboveused ? "|" : ((aboveused = true), "."),
+                )
+            );
+        aboveused = false;
         return l.indent + l.value;
     });
 

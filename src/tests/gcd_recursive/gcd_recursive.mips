@@ -30,10 +30,10 @@ call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
     move $t1 $a1                                  #     !TODO! = $a1
     # body
     bnez $t1, if_end                              #     if b == 0 {
-        move $v0 $t0                              #         |      a
+        move $v0 $t0                              #         .      a
         j deinit_gcd                              #         return ^;
     if_end:                                       #     }
-    move $a0 $t1                                  #     |               b
+    move $a0 $t1                                  #     .               b
     rem $a1, $t0 $t1                              #     |                  a % b
     jal call_gcd                                  #     |           gcd(^, ^^^^^)
     move $v0, $v0                                 #     return$v0 = ^^^^^^^^^^^^^
@@ -63,7 +63,7 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     move $t1 $zero                                #     index = 0
     loop_start:                                   #     loop {
         beq $t1 $a2, loop_end                     #         if index == len { break; }
-        mulo $t2, $t1 4                           #         |   index * 4
+        mulo $t2, $t1 4                           #         .   index * 4
         addu $t3, $t2 $a0                         #         |   ^^^^^^^^^ + bArray
         lw $t3 ($t3)                              #         |  (^^^^^^^^^^^^^^^^^^).*
         mulo $t4, $t1 4                           #         |                             index * 4
@@ -83,21 +83,21 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
 jr $ra                                            # }
 main:                                             # main:
 move $s0 $zero                                    # index = 0
-lw $t0, len                                       # |     @len
+lw $t0, len                                       # .     @len
 mulo $s1, $t0 4                                   # len = ^^^^ * 4
 loop_start_2:                                     # loop {
     beq $s0 $s1, loop_end_2                       #     if index == len { break; }
-    la $t0, x                                     #     |            @x
+    la $t0, x                                     #     .            @x
     addu $t0, $s0 $t0                             #     |    index + ^^
     lw $s2 ($t0)                                  #     a = (^^^^^^^^^^).*
-    la $t0, y                                     #     |            @y
+    la $t0, y                                     #     .            @y
     addu $t0, $s0 $t0                             #     |    index + ^^
     lw $s3 ($t0)                                  #     b = (^^^^^^^^^^).*
-    move $a0 $s2                                  #     |            a
+    move $a0 $s2                                  #     .            a
     move $a1 $s3                                  #     |               b
     jal call_gcd                                  #     |        gcd(^, ^)
     move $s4, $v0                                 #     result = ^^^^^^^^^
-    la $t0, z                                     #     |                 @z
+    la $t0, z                                     #     .                 @z
     addu $t0, $s0 $t0                             #     |         index + ^^
     sw $s4 ($t0)                                  #     result = (^^^^^^^^^^).*
     print_str("GCD of (")                         #     print_str("GCD of (")
@@ -117,7 +117,7 @@ loop_start_2:                                     # loop {
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")
-la $a0, y                                         # |                     @y
+la $a0, y                                         # .                     @y
 la $a1, z                                         # |                         @z
 lw $a2, len                                       # |                             @len
 jal call_equal_count                              # |         equal_count(^^, ^^, ^^^^)
