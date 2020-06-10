@@ -30,12 +30,12 @@ call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
     move $t1 $a1                                  #     !TODO! = $a1
     # body
     bnez $t1, if_end                              #     if b == 0 {
-        move $v0 $t0                              #         v      a
+        move $v0 $t0                              #         temp = a
         j deinit_gcd                              #         return ^;
     if_end:                                       #     }
-    move $a0 $t1                                  #     v               b
-    rem $a1, $t0 $t1                              #     v                  a % b
-    jal call_gcd                                  #     v           gcd(^, ^^^^^)
+    move $a0 $t1                                  #     temp =          b
+    rem $a1, $t0 $t1                              #     temp =             a % b
+    jal call_gcd                                  #     temp =      gcd(^, ^^^^^)
     move $v0, $v0                                 #     return$v0 = ^^^^^^^^^^^^^
                                                   #
 deinit_gcd:                                       # cleanup:
@@ -63,12 +63,12 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     move $t1 $zero                                #     index = 0
     loop_start:                                   #     loop {
         beq $t1 $a2, loop_end                     #         if index == len { break; }
-        mulo $t2, $t1 4                           #         v         index * 4
-        add $t3, $t2 $a0                          #         v         ^^^^^^^^^ + bArray
-        lw $t3 ($t3)                              #         v  bArray[^^^^^^^^^^^^^^^^^^]
-        mulo $t4, $t1 4                           #         v                                       index * 4
-        add $t5, $t4 $a1                          #         v                                       ^^^^^^^^^ + cArray
-        lw $t5 ($t5)                              #         v                                cArray[^^^^^^^^^^^^^^^^^^]
+        mulo $t2, $t1 4                           #         temp =    index * 4
+        add $t3, $t2 $a0                          #         temp =    ^^^^^^^^^ + bArray
+        lw $t3 ($t3)                              #            bArray[^^^^^^^^^^^^^^^^^^]
+        mulo $t4, $t1 4                           #         temp =                                  index * 4
+        add $t5, $t4 $a1                          #         temp =                                  ^^^^^^^^^ + cArray
+        lw $t5 ($t5)                              #         temp =                           cArray[^^^^^^^^^^^^^^^^^^]
         bne $t3 $t5, if_end_4                     #         if ^^^^^^^^^^^^^^^^^^^^^^^^^^ == ^^^^^^^^^^^^^^^^^^^^^^^^^^ {
             add $t0, $t0 1                        #             count = count + 1
         if_end_4:                                 #         }
@@ -84,23 +84,23 @@ jr $ra                                            # }
 main:                                             # main:
 move $s0 $zero                                    # index = 0
 loop_start_2:                                     # loop {
-    lw $t0, len                                   #     v           @len
+    lw $t0, len                                   #     temp =      @len
     beq $s0 $t0, loop_end_2                       #     if index == ^^^^ { break; }
-    la $t0, x                                     #     v                  @x
-    mulo $s1, $s0 4                               #     v      index * 4
-    add $t0, $s1 $t0                              #     v      ^^^^^^^^^ + ^^
+    la $t0, x                                     #     temp =             @x
+    mulo $s1, $s0 4                               #     temp = index * 4
+    add $t0, $s1 $t0                              #     temp = ^^^^^^^^^ + ^^
     lw $s2 ($t0)                                  #     a = @x[^^^^^^^^^^^^^^]
-    la $t0, y                                     #     v                  @y
-    mulo $s3, $s0 4                               #     v      index * 4
-    add $t0, $s3 $t0                              #     v      ^^^^^^^^^ + ^^
+    la $t0, y                                     #     temp =             @y
+    mulo $s3, $s0 4                               #     temp = index * 4
+    add $t0, $s3 $t0                              #     temp = ^^^^^^^^^ + ^^
     lw $s4 ($t0)                                  #     b = @y[^^^^^^^^^^^^^^]
-    move $a0 $s2                                  #     v            a
-    move $a1 $s4                                  #     v               b
-    jal call_gcd                                  #     v        gcd(^, ^)
+    move $a0 $s2                                  #     temp =       a
+    move $a1 $s4                                  #     temp =          b
+    jal call_gcd                                  #     temp =   gcd(^, ^)
     move $s5, $v0                                 #     result = ^^^^^^^^^
-    la $t0, z                                     #     v                       @z
-    mulo $s6, $s0 4                               #     v           index * 4
-    add $t0, $s6 $t0                              #     v           ^^^^^^^^^ + ^^
+    la $t0, z                                     #     temp =                  @z
+    mulo $s6, $s0 4                               #     temp =      index * 4
+    add $t0, $s6 $t0                              #     temp =      ^^^^^^^^^ + ^^
     sw $s5 ($t0)                                  #     result = @z[^^^^^^^^^^^^^^]
     print_str("GCD of (")                         #     print_str("GCD of (")
     li $v0 1                                      #     $v0 = 1
@@ -119,10 +119,10 @@ loop_start_2:                                     # loop {
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")
-la $a0, y                                         # v                    @y
-la $a1, z                                         # v                        @z
-lw $a2, len                                       # v                            @len
-jal call_equal_count                              # v        equal_count(^^, ^^, ^^^^)
+la $a0, y                                         # temp =               @y
+la $a1, z                                         # temp =                   @z
+lw $a2, len                                       # temp =                       @len
+jal call_equal_count                              # temp =   equal_count(^^, ^^, ^^^^)
 move $t0, $v0                                     # !TODO! = ^^^^^^^^^^^^^^^^^^^^^^^^^
 li $v0 1                                          # $v0 = 1
 move $a0 $t0                                      # $a0 = value
