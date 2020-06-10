@@ -1,0 +1,16 @@
+\\.text
+\\j main
+
+fn gcd(a: i32, b: i32) i32 {
+    if b == 0 {return a;}
+    return gcd(b, a%b);
+}
+
+\\main:
+
+var gcd_value = gcd(25, 15);
+
+$v0 = 1;
+$a0 = gcd_value;
+\\syscall
+!clear $call;
