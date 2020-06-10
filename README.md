@@ -26,7 +26,7 @@ $a0 = gcd_value;
 |  
 v
 
-```mips
+```yml
 .text                                             # .text
 j main                                            # j main
 # ====================
