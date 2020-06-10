@@ -2,25 +2,30 @@ import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
 let enableEndLabel = false;
 let todo = "!TODO!";
-let todocode = "todo code here";
 
-let nevercomment =
-    "You should never see this !!!+!+!+!+!+!)_++#!+_#*(!+*!#(+)#!(*!#*()!#*#!*)!#*+)_!#()_!#+_()#!_()+";
+let nvercmnt = (): BlockComment => ({
+    msg:
+        "You should never see this !!!+!+!+!+!+!)_++#!+_#*(!+*!#(+)#!(*!#*()!#*#!*)!#*+)_!#()_!#+_()#!_()+",
+});
 
-type Code = { text: string; comment: string }[];
+type Code = Line[];
+type Line = { text: string; comment: BlockComment; indent?: number };
+// eg {out: "$a0", msg: "1 + 1"}
+// eg {msg: "return"}
+type InlineCommentPiece = InlineCommentPiece[] | OutComment | string;
+type OutComment = { out?: string; msg: InlineCommentPiece };
+type BlockComment = OutComment | { msg: InlineCommentPiece; out: undefined };
+let nocmnt = (): BlockComment => ({ msg: [] });
 // TODO:
 // text: string
 // comment: {out: string, value: string} | string
 
-var inputCode: string = undefined as any; // wow this is bad
 export function compile(srcraw: string, filename: string): string {
     let src = srcraw.split("\t").join("    ");
-    inputCode = src;
     const baseast = parse(src, filename) as Ast[];
     let mair = mipsgen(baseast);
     // console.log("\n\n" + mair.join("\n") + "\n\n");
     let res = finalize(mair);
-    inputCode = new Error("uh oh") as any;
     usedLoopNames = {};
     return res;
 }
@@ -79,14 +84,15 @@ let userRegisters: string[] = [
 
 let matchIRRegisters = /%%:(?:out\:)?register:(.+?):%%/g;
 
-function indent(line: { text: string; comment: string }) {
+function indent(line: Line): Line {
     return {
-        text: "    " + line.text,
-        comment: "    " + line.comment,
+        text: line.text,
+        comment: line.comment,
+        indent: (line.indent || 0) + 1,
     };
 }
 
-function lineIsCode(line: { text: string; comment: string }): boolean {
+function lineIsCode(line: Line): boolean {
     let ltxt = line.text.trim();
     if (!ltxt) return false;
     if (ltxt.startsWith("%:%:")) return false;
@@ -131,13 +137,10 @@ x += 1;    // now actually sets x so t0 is not allowed
 
 let exprNotAvailable = ("%%__EXPR__NOT__AVAILABLE%%" as any) as ExprRetV;
 
-const specialstart = "%:%:%%__INDENT_START__%%:%:%";
-const specialend = "%:%:%%__INDENT_END__%%:%:%";
-
-type ExprRetV = { typ: Type; reg: string; name: string };
+type ExprRetV = { typ: Type; reg: string; cmnt: InlineCommentPiece };
 
 // I'm keeping the    vnm    here because immediate may include comptime constants in the future
-function getImmediate(vnm: VNM, expr: AstExpr): undefined | { value: number } {
+function getImmediate(_vnm: VNM, expr: AstExpr): undefined | { value: number } {
     if (expr.expr === "immediate") {
         return { value: +expr.value };
     }
@@ -154,7 +157,7 @@ function evalExprAllowImmediate(
         return {
             reg: "" + imm.value,
             typ: { type: "any" },
-            name: "" + imm.value,
+            cmnt: "" + imm.value,
         };
     } else {
         return evalExprAnyOut(vnm, expr, lines);
@@ -166,7 +169,7 @@ let anytype = (): Type => ({ type: "any" });
 function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
     var imm = getImmediate(vnm, expr);
     if (imm && imm.value === 0)
-        return { reg: genreg("zero"), typ: anytype(), name: "0" };
+        return { reg: genreg("zero"), typ: anytype(), cmnt: "0" };
     if (expr.expr === "register") {
         let type: Type =
             expr.register === "sp"
@@ -178,7 +181,7 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
         return {
             reg: genreg(expr.register),
             typ: type,
-            name: "$" + expr.register,
+            cmnt: "$" + expr.register,
         };
     } else if (expr.expr === "variable") {
         let va = vnm.get(expr.var);
@@ -190,13 +193,18 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
                     expr.pos.start.line +
                     ")",
             );
-        return { reg: va.tempname, typ: va.type, name: expr.var };
+        return { reg: va.tempname, typ: va.type, cmnt: expr.var };
+    } else if (expr.expr === "call" && lines) {
+        let ce = vnm.getfn(expr.name);
+        if (!ce) throw new Error("unknown fn " + expr.name);
+        return ce.call(expr.args, vnm, lines);
     } else if (lines) {
         let out = gentemp();
+        let exprOut = evalExpr(vnm, expr, { reg: out, name: todo }, lines);
         return {
-            typ: evalExpr(vnm, expr, { reg: out, name: todo }, lines),
+            typ: exprOut.type,
             reg: out,
-            name: ":temp",
+            cmnt: exprOut.cmnt,
         };
         // TODO: now mark all the intermediate values as unused
         // or do this in a second step later
@@ -239,13 +247,13 @@ type AOMode = "addressof" | "load" | "store";
 // var q: i32 = a.*
 // that works, store should too
 function evalDerefExpr(
-    outOrStoreTo: string,
+    outOrStoreTo: { reg: string; name: InlineCommentPiece },
     _: "=",
     dereferencingExpr: AstExpr,
     mode: AOMode,
     lines: Code,
     vnm: VNM,
-): Type {
+): { cmnt: OutComment; type: Type } {
     const derefExpr = dereferencingExpr;
     if (derefExpr.expr !== "arrayindex" && derefExpr.expr !== "pointer")
         throw new Error(
@@ -282,54 +290,78 @@ function evalDerefExpr(
             : mode === "store"
             ? "s" + siz
             : asun(mode);
-    let marked = mode === "store" ? outOrStoreTo : markOut(outOrStoreTo);
+    let marked =
+        mode === "store" ? outOrStoreTo.reg : markOut(outOrStoreTo.reg);
+    let ostc: InlineCommentPiece =
+        mode === "store" ? [outOrStoreTo.name, " = "] : "";
+    let comment: OutComment = {
+        out:
+            typeof outOrStoreTo.name === "string"
+                ? outOrStoreTo.name
+                : "~_~+_~_+~REMOVE THIS*%#&*@)$)",
+        msg: nvercmnt(),
+    };
     if (derefExpr.expr === "pointer") {
+        comment.msg = [ostc, "&", from.cmnt];
         lines.push({
             text: `${instr} ${marked} (${from.reg})`,
-            comment: todo + " = &" + from.name,
+            comment,
         });
     } else {
         let indexImmediate = getImmediate(vnm, derefExpr.index);
         if (indexImmediate) {
             let iim = indexImmediate.value;
             let offset = iim * size;
+            comment.msg = [ostc, from.cmnt, "[" + indexImmediate.value + "]"];
             lines.push({
                 text: `${instr} ${marked} ${offset || ""}(${from.reg})`,
-                comment: from.name + "[" + indexImmediate.value + "]",
+                comment,
             });
         } else {
             let index = evalExprAnyOut(vnm, derefExpr.index, lines);
             if (index.typ.type !== "u32" && index.typ.type !== "i32")
                 throw new Error("Index must be u32 or i32");
-            let tmp: { name: string; reg: string };
+            let tmp: { cmnt: InlineCommentPiece; reg: string };
             if (size != 1) {
-                tmp = { name: todo, reg: gentemp() };
+                let cmnt: OutComment = {
+                    out: todo,
+                    msg: [index.cmnt, " * " + size],
+                };
+                tmp = { cmnt: cmnt, reg: gentemp() };
                 lines.push({
-                    text: `mulo ${tmp}, ${index.reg} ${size}`,
-                    comment: tmp.name + " = " + index.name + " * " + size,
+                    text: `mulo ${tmp.reg}, ${index.reg} ${size}`,
+                    comment: cmnt,
                 });
             } else {
-                tmp = { name: index.name, reg: index.reg };
+                tmp = { cmnt: index.cmnt, reg: index.reg };
             }
             let added = gentemp();
-            let addedname = todo;
+            let addedComment: OutComment = {
+                out: todo,
+                msg: [tmp.cmnt, " + ", from.cmnt],
+            };
             lines.push({
                 text: `add ${markOut(added)}, ${tmp.reg} ${from.reg}`,
-                comment: addedname + " = " + tmp.name + " + " + from.name,
+                comment: addedComment,
             });
+            comment.msg = [ostc, from.cmnt, "[", addedComment, "]"];
             lines.push({
                 text: `${instr} ${marked} (${added})`,
-                comment: todo + " = " + from.name + "[" + addedname + "]",
+                comment,
             });
         }
     }
-    return mode === "addressof"
-        ? from.typ
-        : mode === "load"
-        ? from.typ.child
-        : mode === "store"
-        ? from.typ.child // for typechecking help
-        : asun(mode);
+    return {
+        type:
+            mode === "addressof"
+                ? from.typ
+                : mode === "load"
+                ? from.typ.child
+                : mode === "store"
+                ? from.typ.child // for typechecking help
+                : asun(mode),
+        cmnt: comment,
+    };
 }
 
 // if an expected return value arg is passed, it might be useful
@@ -338,39 +370,48 @@ function evalExpr(
     expr: AstExpr,
     outraw: { reg: string; name: string },
     lines: Code,
-): Type {
+): { type: Type; cmnt: InlineCommentPiece } {
     let out = markOut(outraw.reg);
     let outname = outraw.name;
     // run an expr and set resregister to the expr result;
     let simpleRegister = evalExprAnyOut(vnm, expr);
     if (simpleRegister !== exprNotAvailable) {
-        if (simpleRegister.reg === out) return simpleRegister.typ;
+        if (simpleRegister.reg === out)
+            return { type: simpleRegister.typ, cmnt: simpleRegister.cmnt };
+        let setvarComment: OutComment = {
+            out: outname,
+            msg: simpleRegister.cmnt,
+        };
+        // out.name might be unnecessary if the caller sets out.name. wait that can't happen. nvm.
         lines.push({
             text: `move ${out} ${simpleRegister.reg}`,
-            comment: outname + " = " + simpleRegister.name,
+            comment: setvarComment,
         });
-        return simpleRegister.typ;
+        return { type: simpleRegister.typ, cmnt: setvarComment };
     } else if (expr.expr === "immediate") {
+        let liComment: OutComment = { out: outname, msg: "" + expr.value };
         lines.push({
             text: `li ${out} ${expr.value}`,
-            comment: outname + " = " + expr.value,
+            comment: liComment,
         });
-        return anytype();
+        return { type: anytype(), cmnt: liComment };
     } else if (expr.expr === "op") {
         let a = evalExprAnyOut(vnm, expr.left, lines);
         let b = evalExprAllowImmediate(vnm, expr.right, lines);
         let resType = matchTypes(a.typ, b.typ);
 
         if (expr.op === "^") {
+            let cmnt: OutComment;
             if (resType.type === "u8" || resType.type === "u32") {
+                cmnt = { out: outname, msg: [a.cmnt, " ^ ", b.cmnt] };
                 lines.push({
                     text: `xor ${out} ${a.reg} ${b.reg}`,
-                    comment: outname + " = " + a.name + " ^ " + b.name,
+                    comment: cmnt,
                 });
             } else {
                 throw new Error("unsupported type " + resType.type);
             }
-            return resType;
+            return { type: resType, cmnt };
         }
 
         // all must support [] and []u
@@ -386,42 +427,46 @@ function evalExpr(
         else if (resType.type === "i32") u = "";
         else throw new Error("Add does not support type " + resType.type);
 
+        let cmnt: OutComment = {
+            out: outname,
+            msg: [a.cmnt, " " + expr.op + " ", b.cmnt],
+        };
+
         lines.push({
             text: `${base}${u} ${out}, ${a.reg} ${b.reg}`,
-            comment: outname + " = " + a.name + " " + expr.op + " " + b.name,
+            comment: cmnt,
         });
 
-        return resType;
+        return { type: resType, cmnt };
     } else if (expr.expr === "addressof") {
-        return evalDerefExpr(outraw.reg, "=", expr.of, "addressof", lines, vnm);
+        return evalDerefExpr(outraw, "=", expr.of, "addressof", lines, vnm);
     } else if (expr.expr === "arrayindex" || expr.expr === "pointer") {
-        return evalDerefExpr(outraw.reg, "=", expr, "load", lines, vnm);
+        return evalDerefExpr(outraw, "=", expr, "load", lines, vnm);
     } else if (expr.expr === "undefined") {
-        return anytype();
+        return { type: anytype(), cmnt: "undefined" };
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
-        return ce.call(
-            expr.args,
-            vnm,
-            { reg: outraw.reg, name: outname },
-            lines,
-        );
+        let callres = ce.call(expr.args, vnm, lines);
+        let comment: OutComment = { out: outname, msg: callres.cmnt };
+        lines.push({ text: "move " + out + ", " + callres.reg, comment });
+        return { type: callres.typ, cmnt: comment };
     } else if (expr.expr === "data") {
         let type = evalType(expr.type);
+        let cmnt: OutComment = { out: outname, msg: "@" + expr.name };
         if (type.type === "pointer" || type.type === "arrayptr") {
             lines.push({
                 text: `la ${out}, ${expr.name}`,
-                comment: outname + " = @" + expr.name,
+                comment: cmnt,
             });
         } else {
             lines.push({
                 text: `lw ${out}, ${expr.name}`,
-                comment: outname + " = @" + expr.name,
+                comment: cmnt,
             });
             // can be optimized for size to `lw out, label(number)` to avoid an add
         }
-        return type;
+        return { type, cmnt };
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -435,15 +480,10 @@ type LoopInfo = {
     end: string;
 };
 type FnInfo = {
-    call(
-        args: AstExpr[],
-        argvnm: VNM,
-        returnTo: { reg: string; name: string },
-        res: Code,
-    ): Type;
+    call(args: AstExpr[], argvnm: VNM, res: Code): ExprRetV;
     real?: RealFnInfo;
 };
-type FnReturnFn = (value: Type, lines: Code) => void;
+type FnReturnFn = (value: Type, lines: Code, rncmt: InlineCommentPiece) => void;
 type FnReturn = { outvar: string; outvarname: string; fnreturnf: FnReturnFn };
 type VNM = {
     getfn: (key: string) => FnInfo | undefined;
@@ -506,20 +546,23 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
         name: arg.name,
     }));
     vnm.setfn(fn.name, {
-        call: (args, argvnm, returnTo, reslines) => {
+        call: (args, argvnm, reslines) => {
             let returnMark = mklabel(fn.name + "_return");
 
             let nvnm = makeVariableNameMap(vnm);
-            let returnTemp = gentemp(); // this should hopefully get allocated to a valid register and the move instruction should be deleted
-            nvnm.setFnReturn(returnTemp, "return", (result, lines) => {
+            let returnTemp = gentemp();
+            nvnm.setFnReturn(returnTemp, "return", (result, lines, rct) => {
                 matchTypes(type, result);
                 lines.push({
                     text: "j " + returnMark.ref,
-                    comment: "return",
+                    comment: {
+                        msg: ["return", rct ? [" ", rct] : "", ";"],
+                    },
                 });
             });
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
+            let argComments: InlineCommentPiece[] = [];
             expctArgs.forEach((expctArg, i) => {
                 let arg = args[i];
                 let resvar = gentemp();
@@ -529,19 +572,28 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     { reg: resvar, name: todo },
                     reslines,
                 );
-                matchTypes(typ, expctArg.typ);
+                matchTypes(typ.type, expctArg.typ);
+
+                // easier than making a arrayJoin fn
+                // and probably faster
+                if (i !== 0) argComments.push(", ");
+                argComments.push(typ.cmnt);
+
                 nvnm.set(expctArg.name, {
                     type: expctArg.typ,
                     tempname: resvar,
                 });
             });
             reslines.push(...mipsgen(fn.body, nvnm));
-            reslines.push({ text: returnMark.def + ":", comment: todo }); // todo remove unused labels
             reslines.push({
-                text: "move " + markOut(returnTo.reg) + " " + returnTemp,
-                comment: returnTo.name + " = " + todo,
-            });
-            return type;
+                text: returnMark.def + ":",
+                comment: { msg: "}" },
+            }); // todo remove unused labels
+            return {
+                typ: type,
+                reg: returnTemp,
+                cmnt: [fn.name + "(", argComments, ")"],
+            };
         },
     });
 }
@@ -579,11 +631,12 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
     let startLabel = mklabel("call_" + fn.name);
     let deinitLabel = mklabel("deinit_" + fn.name);
     vnm.setfn(fn.name, {
-        call: (args, argvnm, returnTo, reslines) => {
+        call: (args, argvnm, reslines): ExprRetV => {
             if (args.length !== expctArgs.length)
                 throw new Error("wrong arg count");
 
-            let argNamesnm = expctArgs.map((expctArg, i) => {
+            let argComments: InlineCommentPiece[] = [];
+            expctArgs.forEach((expctArg, i) => {
                 let arg = args[i];
                 // evalExpr could be named better to make it clear that
                 // it outputs into a register
@@ -598,8 +651,9 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
                     },
                     reslines,
                 );
-                matchTypes(typ, expctArg.typ);
-                return argnamenm;
+                if (i != 0) argComments.push(", ");
+                argComments.push(typ.cmnt);
+                matchTypes(typ.type, expctArg.typ);
             });
             // todo would prefer fn(^^, ^^^^^^^, ^^^^)
             // eg:
@@ -611,21 +665,20 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             // fn(^, ^^)
             // this could be done by changing comment to
             // {out: string, value: string}
-            todocode;
+            let returnReg = genreg("v0");
+            let resComment: OutComment = {
+                out: returnReg,
+                msg: [fn.name + "(", argComments, ")"],
+            };
             reslines.push({
                 text: "jal " + startLabel.ref,
-                comment: fn.name + "(" + argNamesnm.join(", ") + ")",
+                comment: resComment,
             });
             reslines.push({
                 text: "%%{{MARK_CLEAR:" + regExpansions.call.join(",") + "}}%%",
-                comment: nevercomment,
+                comment: nvercmnt(),
             });
-            let returnReg = genreg("v0");
-            reslines.push({
-                text: "move " + markOut(returnTo.reg) + " " + returnReg,
-                comment: returnTo.name + " = " + todo,
-            });
-            return returnType;
+            return { typ: returnType, reg: returnReg, cmnt: resComment };
         },
         real: {
             startLabel,
@@ -657,11 +710,24 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
     // have access
     let ivnm = makeVariableNameMap(vnm, false);
 
-    ivnm.setFnReturn(genreg("v0"), "return$v0", (result, lines) => {
-        matchTypes(result, fn.returntype);
-        // caller should extract out v0
-        lines.push({ text: "j " + fn.deinitLabel.ref, comment: "return" });
-    });
+    ivnm.setFnReturn(
+        genreg("v0"),
+        "return$v0",
+        (result, lines, returncomment) => {
+            matchTypes(result, fn.returntype);
+            // caller should extract out v0
+            lines.push({
+                text: "j " + fn.deinitLabel.ref,
+                comment: {
+                    msg: [
+                        "return",
+                        returncomment ? [" ", returncomment] : "",
+                        ";",
+                    ],
+                }, // return ^^^^^? not yet because effort
+            });
+        },
+    );
 
     let argsetLines: Code = [];
     fn.args.forEach((arg, i) => {
@@ -686,7 +752,7 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
 
     precompiledLines.push(...argsetLines);
 
-    precompiledLines.push({ text: "# body", comment: "" });
+    precompiledLines.push({ text: "# body", comment: nocmnt() });
     precompiledLines.push(...mipsgen(fn.body, ivnm));
     let bodyCodeAllocated = registerAllocate(precompiledLines);
     let referencedSVariables = new Set<string>();
@@ -707,45 +773,49 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
     if (svars.length > 0) {
         bodyLines.push({
             text: "# save used s registers to stack",
-            comment: "",
+            comment: nocmnt(),
         });
         bodyLines.push({
             text: "subiu $sp, $sp, " + svars.length * 4,
-            comment: "$sp = $sp[-" + svars.length + "]",
+            comment: { out: "$sp", msg: "$sp[-" + svars.length + "]" },
         });
     }
     svars.forEach((svar, i) => {
         bodyLines.push({
             text: "sw $" + svar + ", " + i * 4 + "($sp)",
-            comment: "save $sp[" + i + "] = $" + svar,
+            comment: { msg: "$sp[" + i + "] = $" + svar },
         });
     });
     if (svars.length > 0) {
-        bodyLines.push({ text: "", comment: "" });
+        bodyLines.push({ text: "", comment: nocmnt() });
     }
 
     // 2-3: save args, run fn body
     bodyLines.push(...compileAllocated(bodyCodeAllocated));
 
     // 4: reload s variables from stack
-    if (svars.length > 0) bodyLines.push({ text: "", comment: "" });
+    if (svars.length > 0) bodyLines.push({ text: "", comment: nocmnt() });
     if (svars.length > 0)
-        bodyLines.push({ text: fn.deinitLabel.def + ":", comment: "cleanup:" });
+        bodyLines.push({
+            text: fn.deinitLabel.def + ":",
+            comment: { msg: "cleanup:" },
+            indent: -1, // hack
+        });
     if (svars.length > 0)
         bodyLines.push({
             text: "# reload used s registers from stack",
-            comment: "",
+            comment: nocmnt(),
         });
     svars.forEach((svar, i) => {
         bodyLines.push({
             text: "lw $" + svar + ", " + i * 4 + "($sp)",
-            comment: "    $" + svar + " = $sp[" + i + "]",
+            comment: { out: "$" + svar, msg: "$sp[" + i + "]" },
         });
     });
     if (svars.length > 0)
         bodyLines.push({
             text: "addiu $sp, $sp, " + svars.length * 4,
-            comment: "    $sp = $sp[" + svars.length + "]",
+            comment: { out: "$sp", msg: "$sp[" + svars.length + "]" },
         });
 
     let endLabel = mklabel("skip_" + fn.name);
@@ -772,30 +842,35 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
         "# ====================",
     ];
     rescode.push(
-        ...headerComments.map(comment => ({ text: comment, comment: "" })),
+        ...headerComments.map(comment => ({
+            text: comment,
+            comment: nocmnt(),
+        })),
     );
 
     // jump over fn
     if (enableEndLabel)
-        rescode.push({ text: "j " + endLabel.ref, comment: "" });
+        rescode.push({ text: "j " + endLabel.ref, comment: nocmnt() });
     // start label
     rescode.push({
         text: fn.startLabel.def + ":",
-        comment:
-            "fn " +
-            fn.name +
-            "(" +
-            fn.args.map(a => a.name + ": " + printType(a.typ)).join(", ") +
-            ") " +
-            printType(fn.returntype) +
-            "{",
+        comment: {
+            msg:
+                "fn " +
+                fn.name +
+                "(" +
+                fn.args.map(a => a.name + ": " + printType(a.typ)).join(", ") +
+                ") " +
+                printType(fn.returntype) +
+                "{",
+        },
     });
     // body code
     rescode.push(...bodyLines.map(l => indent(l)));
     // return
-    rescode.push({ text: "jr $ra", comment: "}" });
+    rescode.push({ text: "jr $ra", comment: { msg: "}" } });
     // fn end
-    rescode.push({ text: endLabel.def + ":", comment: "" });
+    rescode.push({ text: endLabel.def + ":", comment: nocmnt() });
 }
 
 function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
@@ -820,7 +895,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
     for (let line of ast) {
         let code: Code = [];
         if (line.ast === "ilasm") {
-            code.push({ text: line.ilasm, comment: line.ilasm });
+            code.push({ text: line.ilasm, comment: { msg: line.ilasm } });
         } else if (line.ast === "clear") {
             code.push({
                 text:
@@ -829,7 +904,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
                         .flatMap(r => regExpansions[r] || [r])
                         .join(",") +
                     "}}%%",
-                comment: nevercomment,
+                comment: nvercmnt(),
             });
         } else if (line.ast === "defvar") {
             let tempname = gentemp();
@@ -843,9 +918,9 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             let resType: Type;
             if (line.type) {
                 let defType = evalType(line.type);
-                resType = matchTypes(defType, exprResultType); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
+                resType = matchTypes(defType, exprResultType.type); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
             } else {
-                resType = exprResultType;
+                resType = exprResultType.type;
             }
             vnm.set(line.name, { type: resType, tempname });
         } else if (line.ast === "setvar") {
@@ -853,10 +928,16 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             let rt = evalExpr(
                 vnm,
                 line.value,
-                { reg: eao.reg, name: eao.name },
+                { reg: eao.reg, name: eao.cmnt.toString() },
+                // *should* be a string maybe
+                // sidenote: why is there a difference between set and save?
+                // save a.* = 5
+                // why not `a.* = 5`
                 code,
             );
-            matchTypes(eao.typ, rt);
+            // rt.out = "var name"
+            // if we were doing that, but we aren't for unknown reasons.
+            matchTypes(eao.typ, rt.type);
         } else if (line.ast === "if") {
             let left = evalExprAnyOut(vnm, line.condleft, code);
             let right = evalExprAllowImmediate(vnm, line.condright, code);
@@ -877,7 +958,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
 
             let rescode = mipsgen(line.code, vnm);
             let smplcde = cleancode(rescode);
-            let jincmnt: string | undefined;
+            let jincmnt: InlineCommentPiece | undefined;
             if (
                 smplcde.length === 1 &&
                 smplcde[0].text.trim().startsWith("j ")
@@ -915,14 +996,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
                 ? inverse[line.condition]
                 : line.condition;
             let condinstr = conditionNames[condition];
-            let comment =
-                "if " +
-                left.name +
-                " " +
-                line.condition +
-                " " +
-                right.name +
-                (requiresCode ? " {" : " { " + jincmnt! + " }");
+            let comment: BlockComment = {
+                msg: [
+                    "if ",
+                    left.cmnt,
+                    " " + line.condition + " ",
+                    right.cmnt,
+                    requiresCode ? " {" : [" { ", jincmnt!, " }"],
+                ],
+            };
 
             if (condition === "!=" && right.reg === "0")
                 code.push({ text: `bnez ${left.reg}, ${lbl}`, comment });
@@ -936,7 +1018,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
 
             if (requiresCode) {
                 code.push(...rescode.map(l => indent(l)));
-                code.push({ text: lavjkndas.def + ":", comment: "}" });
+                code.push({ text: lavjkndas.def + ":", comment: { msg: "}" } });
             }
         } else if (line.ast === "loop") {
             /// continueLabel = genlabel(loop_continue);
@@ -947,38 +1029,36 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             vctx.setLoop({ start: startLbl.ref, end: endLbl.ref });
             let rescode = mipsgen(line.code, vctx);
 
-            code.push({ text: startLbl.def + ":", comment: "loop {" });
+            code.push({ text: startLbl.def + ":", comment: { msg: "loop {" } });
             code.push({
                 text: "%%{{controlflow_mark::" + startLbl.raw + "}}%%",
-                comment: nevercomment,
+                comment: nvercmnt(),
             });
             code.push(...rescode.map(l => indent(l)));
             code.push({
                 text: "%%{{controlflow_goto::" + startLbl.raw + "}}%%",
-                comment: nevercomment,
+                comment: nvercmnt(),
             });
-            code.push({ text: "j " + startLbl.ref, comment: "}" });
-            code.push({ text: endLbl.def + ":", comment: "^" });
+            code.push({ text: "j " + startLbl.ref, comment: { msg: "}" } });
+            code.push({ text: endLbl.def + ":", comment: { msg: "^" } });
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("continue not in loop");
-            code.push({ text: "j " + lp.start, comment: "continue" });
+            code.push({ text: "j " + lp.start, comment: { msg: "continue;" } });
         } else if (line.ast === "break") {
             let lp = vnm.getLoop();
             if (!lp) throw new Error("break not in loop");
-            code.push({ text: "j " + lp.end, comment: "break" });
+            code.push({ text: "j " + lp.end, comment: { msg: "break;" } });
         } else if (line.ast === "return") {
             let fnreturn = vnm.getFnReturn();
             if (!fnreturn) throw new Error("return not in fn");
-            fnreturn.fnreturnf(
-                evalExpr(
-                    vnm,
-                    line.returnv,
-                    { reg: fnreturn.outvar, name: fnreturn.outvarname },
-                    code,
-                ),
+            let evlxpr = evalExpr(
+                vnm,
+                line.returnv,
+                { reg: fnreturn.outvar, name: fnreturn.outvarname },
                 code,
             );
+            fnreturn.fnreturnf(evlxpr.type, code, evlxpr.cmnt);
         } else if (line.ast === "fn") {
             let fni = vnm.getfn(line.name);
             if (!fni)
@@ -991,26 +1071,19 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
         } else if (line.ast === "save") {
             let value = evalExprAnyOut(vnm, line.value, code);
             let rest = evalDerefExpr(
-                value.reg,
+                { reg: value.reg, name: value.cmnt },
                 "=",
                 line.saveloc,
                 "store",
                 code,
                 vnm,
             );
-            matchTypes(value.typ, rest);
+            rest.cmnt.out = undefined;
+            matchTypes(value.typ, rest.type);
         } else {
             asun(line);
         }
-        finalResultCode.push(
-            // { text: specialstart, comment: nevercomment },
-            ...code,
-            // { text: specialend, comment: nevercomment },
-        );
-        // if (code.length > 0)
-        //     for (let i = code.length; i < srccode.length; i++) {
-        //         finalResultCode.push("" + commentSeparator + srccode[i]);
-        //     }
+        finalResultCode.push(...code);
     }
     return finalResultCode;
 }
@@ -1043,9 +1116,7 @@ function registerAllocate(rawIR: Code): Code {
             .slice(startIndex, endIndexExclusive)
             .map((l, i) => ({ line: l.text, j: i + startIndex }));
         let variableIsUsedLater = false;
-        let iterIndex = 0;
         while (true) {
-            iterIndex++;
             if (allLines.length === 0) break;
             let { j, line } = allLines.shift()!;
             // console.log(variableID + "| [" + j + "]: " + line);
@@ -1203,7 +1274,11 @@ function registerAllocate(rawIR: Code): Code {
                 return "%%:" + om + "register:" + reg + ":%%";
             },
         );
-        registersOnlyIR.push({ text: lintext, comment: lineraw.comment });
+        registersOnlyIR.push({
+            text: lintext,
+            comment: lineraw.comment,
+            indent: lineraw.indent,
+        });
     });
     return registersOnlyIR.filter((_, i) => !markDelete[i]);
 }
@@ -1212,6 +1287,7 @@ function compileAllocated(registersOnlyIR: Code) {
         .map(line => ({
             text: line.text.replace(matchIRRegisters, (_, q) => "$" + q),
             comment: line.comment,
+            indent: line.indent,
         }))
         .filter(l => !l.text.trim().startsWith("%%{{"));
 }
@@ -1262,19 +1338,81 @@ function cleanupUnreachable(allocatedIR: Code) {
         .map(l => ({
             text: l.text.replace(/%%:(?:ref:)?label:(.+?):%%/g, "$1"),
             comment: l.comment,
+            indent: l.indent,
         }));
 }
 function commentate(code: Code): string[] {
-    let rescode: string[] = [];
-    for (let line of code) {
-        if (line.text.trim().startsWith("#")) {
-            rescode.push(line.text);
-        } else {
-            rescode.push(
-                line.text.padEnd(50, " ") + ("# " + line.comment).trim(),
-            );
+    type ResultItem = {
+        value: string;
+        assignto: string;
+        used: boolean;
+        indent: string;
+    };
+    let resultComments: ResultItem[] = [];
+    let commentSet = new Map<BlockComment, number[]>();
+    let printComment = (
+        cmnt: InlineCommentPiece,
+        left: number,
+    ): { text: string; idxs: number[] } => {
+        if (typeof cmnt === "string") return { text: cmnt, idxs: [] };
+        if (Array.isArray(cmnt)) {
+            let idxs: number[] = [];
+            return {
+                text: cmnt
+                    .map(q => {
+                        let res = printComment(q, left);
+                        left += res.text.length;
+                        idxs.push(...res.idxs);
+                        return res.text;
+                    })
+                    .join(""),
+                idxs,
+            };
         }
-    }
+        let linesIdxs = commentSet.get(cmnt);
+        if (linesIdxs) {
+            let flen = 0;
+            for (let i of linesIdxs) {
+                resultComments[i].value =
+                    " ".repeat(left) + resultComments[i].value;
+                resultComments[i].used = true;
+                flen = resultComments[i].value.trim().length;
+            }
+            commentSet.delete(cmnt);
+            return { text: "^".repeat(flen), idxs: [...linesIdxs] };
+        }
+        return { text: ":TODO:", idxs: [] };
+    };
+    code.forEach((line, i) => {
+        let comment = line.comment;
+        let indent = "    ".repeat(line.indent || 0);
+        let left = comment.out ? comment.out + " = " : "";
+        let prcres = printComment(comment.msg, 0);
+        let fidx =
+            resultComments.push({
+                indent,
+                value: prcres.text,
+                assignto: left,
+                used: false,
+            }) - 1;
+        if (fidx !== i) throw new Error("never");
+        commentSet.set(comment, [...prcres.idxs, fidx]);
+    });
+
+    let rcxt: string[] = resultComments.map(l => {
+        if (l.used) return l.indent + l.value;
+        return l.indent + l.assignto + l.value;
+    });
+
+    let rescode: string[] = [];
+    code.forEach((line, i) => {
+        let ltx = "    ".repeat(line.indent || 0) + line.text;
+        if (line.text.trim().startsWith("#")) {
+            rescode.push(ltx);
+        } else {
+            rescode.push(ltx.padEnd(50, " ") + ("# " + rcxt[i]).trim());
+        }
+    });
     return rescode;
 }
 function finalize(rawIR: Code): string {

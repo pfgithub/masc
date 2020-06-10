@@ -24,24 +24,24 @@ j main                                            # j main
 call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
     # save used s registers to stack
     subiu $sp, $sp, 4                             #     $sp = $sp[-1]
-    sw $ra, 0($sp)                                #     save $sp[0] = $ra
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
                                                   #
     move $t0 $a0                                  #     !TODO! = $a0
     move $t1 $a1                                  #     !TODO! = $a1
     # body
     bnez $t1, if_end                              #     if b == 0 {
-        move $v0 $t0                              #         return$v0 = a
-        j deinit_gcd                              #         return
+        move $v0 $t0                              #                a
+        j deinit_gcd                              #         return ^;
     if_end:                                       #     }
-    move $a0 $t1                                  #     $a0 (a) = b
-    rem $a1, $t0 $t1                              #     $a1 (b) = a % b
-    jal call_gcd                                  #     gcd($a0 (a), $a1 (b))
-    move $v0 $v0                                  #     return$v0 = !TODO!
+    move $a0 $t1                                  #         b
+    rem $a1, $t0 $t1                              #            a % b
+    jal call_gcd                                  #     gcd(^, ^^^^^)
+    move $v0, $v0                                 #     return$v0 = ^^^^^^^^^^^^^
                                                   #
-    deinit_gcd:                                   #     cleanup:
+deinit_gcd:                                       # cleanup:
     # reload used s registers from stack
-    lw $ra, 0($sp)                                #         $ra = $sp[0]
-    addiu $sp, $sp, 4                             #         $sp = $sp[1]
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = $sp[1]
 jr $ra                                            # }
                                                   #
 # ====================
@@ -56,20 +56,20 @@ jr $ra                                            # }
 call_equal_count:                                 # fn equal_count(bArray: [*]i32, cArray: [*]i32, len: i32) i32{
     # save used s registers to stack
     subiu $sp, $sp, 4                             #     $sp = $sp[-1]
-    sw $ra, 0($sp)                                #     save $sp[0] = $ra
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
                                                   #
     # body
     move $t0 $zero                                #     count = 0
     move $t1 $zero                                #     index = 0
     loop_start:                                   #     loop {
-        beq $t1 $a2, loop_end                     #         if index == len { break }
-        mulo [object Object], $t1 4               #         !TODO! = index * 4
-        add $t2, $t3 $a0                          #         !TODO! = !TODO! + bArray
-        lw $t2 ($t2)                              #         !TODO! = bArray[!TODO!]
-        mulo [object Object], $t1 4               #         !TODO! = index * 4
-        add $t4, $t5 $a1                          #         !TODO! = !TODO! + cArray
-        lw $t4 ($t4)                              #         !TODO! = cArray[!TODO!]
-        bne $t2 $t4, if_end_4                     #         if :temp == :temp {
+        beq $t1 $a2, loop_end                     #         if index == len { :TODO: }
+        mulo $t2, $t1 4                           #                   index * 4
+        add $t3, $t2 $a0                          #                   ^^^^^^^^^ + bArray
+        lw $t3 ($t3)                              #            bArray[^^^^^^^^^^^^^^^^^^]
+        mulo $t4, $t1 4                           #                                                 index * 4
+        add $t5, $t4 $a1                          #                                                 ^^^^^^^^^ + cArray
+        lw $t5 ($t5)                              #                                          cArray[^^^^^^^^^^^^^^^^^^]
+        bne $t3 $t5, if_end_4                     #         if ^^^^^^^^^^^^^^^^^^^^^^^^^^ == ^^^^^^^^^^^^^^^^^^^^^^^^^^ {
             add $t0, $t0 1                        #             count = count + 1
         if_end_4:                                 #         }
         add $t1, $t1 1                            #         index = index + 1
@@ -78,30 +78,30 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     move $v0 $t0                                  #     return$v0 = count
                                                   #
     # reload used s registers from stack
-    lw $ra, 0($sp)                                #         $ra = $sp[0]
-    addiu $sp, $sp, 4                             #         $sp = $sp[1]
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = $sp[1]
 jr $ra                                            # }
 main:                                             # main:
 move $s0 $zero                                    # index = 0
 loop_start_2:                                     # loop {
-    lw $t0, len                                   #     !TODO! = @len
-    beq $s0 $t0, loop_end_2                       #     if index == :temp { break }
-    la $t0, x                                     #     !TODO! = @x
-    mulo [object Object], $s0 4                   #     !TODO! = index * 4
-    add $t0, $s1 $t0                              #     !TODO! = !TODO! + :temp
-    lw $s2 ($t0)                                  #     !TODO! = :temp[!TODO!]
-    la $t0, y                                     #     !TODO! = @y
-    mulo [object Object], $s0 4                   #     !TODO! = index * 4
-    add $t0, $s3 $t0                              #     !TODO! = !TODO! + :temp
-    lw $s4 ($t0)                                  #     !TODO! = :temp[!TODO!]
-    move $a0 $s2                                  #     $a0 (a) = a
-    move $a1 $s4                                  #     $a1 (b) = b
-    jal call_gcd                                  #     gcd($a0 (a), $a1 (b))
-    move $s5 $v0                                  #     result = !TODO!
-    la $t0, z                                     #     !TODO! = @z
-    mulo [object Object], $s0 4                   #     !TODO! = index * 4
-    add $t0, $s6 $t0                              #     !TODO! = !TODO! + :temp
-    sw $s5 ($t0)                                  #     !TODO! = :temp[!TODO!]
+    lw $t0, len                                   #                 @len
+    beq $s0 $t0, loop_end_2                       #     if index == ^^^^ { :TODO: }
+    la $t0, x                                     #                        @x
+    mulo $s1, $s0 4                               #            index * 4
+    add $t0, $s1 $t0                              #            ^^^^^^^^^ + ^^
+    lw $s2 ($t0)                                  #     a = :TODO:[^^^^^^^^^^^^^^]
+    la $t0, y                                     #                        @y
+    mulo $s3, $s0 4                               #            index * 4
+    add $t0, $s3 $t0                              #            ^^^^^^^^^ + ^^
+    lw $s4 ($t0)                                  #     b = :TODO:[^^^^^^^^^^^^^^]
+    move $a0 $s2                                  #         a
+    move $a1 $s4                                  #            b
+    jal call_gcd                                  #     gcd(^, ^)
+    move $s5, $v0                                 #     result = ^^^^^^^^^
+    la $t0, z                                     #                                 @z
+    mulo $s6, $s0 4                               #                     index * 4
+    add $t0, $s6 $t0                              #                     ^^^^^^^^^ + ^^
+    sw $s5 ($t0)                                  #     result = :TODO:[^^^^^^^^^^^^^^]
     print_str("GCD of (")                         #     print_str("GCD of (")
     li $v0 1                                      #     $v0 = 1
     move $a0 $s2                                  #     $a0 = value
@@ -119,11 +119,11 @@ loop_start_2:                                     # loop {
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")
-la $a0, y                                         # $a0 (bArray) = @y
-la $a1, z                                         # $a1 (cArray) = @z
-lw $a2, len                                       # $a2 (len) = @len
-jal call_equal_count                              # equal_count($a0 (bArray), $a1 (cArray), $a2 (len))
-move $t0 $v0                                      # !TODO! = !TODO!
+la $a0, y                                         #             @y
+la $a1, z                                         #                 @z
+lw $a2, len                                       #                     @len
+jal call_equal_count                              # equal_count(^^, ^^, ^^^^)
+move $t0, $v0                                     # !TODO! = ^^^^^^^^^^^^^^^^^^^^^^^^^
 li $v0 1                                          # $v0 = 1
 move $a0 $t0                                      # $a0 = value
 syscall                                           # syscall
