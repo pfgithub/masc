@@ -1,89 +1,97 @@
-.macro write_str (%str)
-    .data
-        string: .asciiz %str
-    .text
-        li $v0, 4
-        la $a0, string
-        syscall
-.end_macro
-.text
-j main
-
+.macro write_str (%str)                           # .macro write_str (%str)
+    .data                                         #     .data
+        string: .asciiz %str                      #         string: .asciiz %str
+    .text                                         #     .text
+        li $v0, 4                                 #         li $v0, 4
+        la $a0, string                            #         la $a0, string
+        syscall                                   #         syscall
+.end_macro                                        # .end_macro
+.text                                             # .text
+j main                                            # j main
 # ====================
 # jal call_returns
 # args:
-#   $a0: innum - u32
+#    $a0: innum - u32
 # return:
-#    $t0: i32
+#    $v0: i32
 # ====================
-call_returns:
+call_returns:                                     # fn returns(innum: u32) i32{
+    # save used s registers to stack
+    subiu $sp, $sp, 4                             #     $sp = &$sp[-1]
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
+                                                  #
     # body
-    bne $a0 1, if_end
-        li $t0 15
-        jr $ra
-    if_end:
-    li $t0 34
-    jr $ra
-jr $ra
+    bneu $a0 1, if_end                            #     if innum == 1 {
+        li $v0 15                                 #         .      15
+        j deinit_returns                          #         return ^^;
+    if_end:                                       #     }
+    li $v0 34                                     #     return$v0 = 34
+                                                  #
+deinit_returns:                                   # cleanup:
+    # reload used s registers from stack
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = &$sp[1]
+jr $ra                                            # }
 # ====================
 # jal call_noreturn
 # args: none
 # return: none
 # ====================
-call_noreturn:
+call_noreturn:                                    # fn noreturn() void{
+    # save used s registers to stack
+    subiu $sp, $sp, 4                             #     $sp = &$sp[-1]
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
+                                                  #
     # body
-jr $ra
-
-main:
-move $t1 $zero
-bne $t1 1, if_end_2
-    li $t1 12
-    j inline_returns_return
-if_end_2:
-li $t1 25
-j inline_returns_return
-inline_returns_return:
-move $t1 $t1
-write_str("expected 25: ")
-move $t1 $t1
-li $v0 1
-move $a0 $t1
-syscall
-write_str("\n")
-
-li $a0 1
-jal call_returns
-move $t1 $t0
-write_str("expected 15: ")
-move $t1 $t1
-li $v0 1
-move $a0 $t1
-syscall
-write_str("\n")
-
-jal call_noreturn
-
-move $a0 $zero
-jal call_returns
-write_str("expected 34: ")
-move $t0 $t0
-li $v0 1
-move $a0 $t0
-syscall
-write_str("\n")
-
-li $t0 1
-bne $t0 1, if_end_4
-    li $t0 12
-    j inline_returns_return_2
-if_end_4:
-li $t0 25
-j inline_returns_return_2
-inline_returns_return_2:
-move $t0 $t0
-write_str("expected 12: ")
-move $t0 $t0
-li $v0 1
-move $a0 $t0
-syscall
-write_str("\n")
+                                                  #
+    # reload used s registers from stack
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = &$sp[1]
+jr $ra                                            # }
+                                                  #
+main:                                             # main:
+move $t0 $zero                                    # .              0
+bneu $t0 1, if_end_2                              # inline_returns(^)
+    li $t0 12                                     #
+    j inline_returns_return                       #
+if_end_2:                                         #
+li $t0 25                                         #
+inline_returns_return:                            # }
+write_str("expected 25: ")                        # write_str("expected 25: ")
+li $v0 1                                          # write_int(result1)
+move $a0 $t0                                      #
+syscall                                           #
+write_str("\n")                                   # write_str("\n")
+                                                  #
+li $a0 1                                          # .                           1
+jal call_returns                                  # %%:register:v0:%% = returns(^)
+write_str("expected 15: ")                        # write_str("expected 15: ")
+move $t0 $v0                                      # .         result2
+li $v0 1                                          # write_int(^^^^^^^)
+move $a0 $t0                                      #
+syscall                                           #
+write_str("\n")                                   # write_str("\n")
+                                                  #
+jal call_noreturn                                 # %%:register:v0:%% = noreturn()
+                                                  #
+move $a0 $zero                                    # .                           0
+jal call_returns                                  # %%:register:v0:%% = returns(^)
+write_str("expected 34: ")                        # write_str("expected 34: ")
+move $t0 $v0                                      # .         result3
+li $v0 1                                          # write_int(^^^^^^^)
+move $a0 $t0                                      #
+syscall                                           #
+write_str("\n")                                   # write_str("\n")
+                                                  #
+li $t0 1                                          # .              1
+bneu $t0 1, if_end_4                              # inline_returns(^)
+    li $t0 12                                     #
+    j inline_returns_return_2                     #
+if_end_4:                                         #
+li $t0 25                                         #
+inline_returns_return_2:                          # }
+write_str("expected 12: ")                        # write_str("expected 12: ")
+li $v0 1                                          # write_int(result4)
+move $a0 $t0                                      #
+syscall                                           #
+write_str("\n")                                   # write_str("\n")

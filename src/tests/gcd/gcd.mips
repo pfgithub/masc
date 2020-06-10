@@ -1,96 +1,104 @@
-.macro print_str (%str)
-    .data
-        string: .asciiz %str
-    .text
-        li $v0, 4
-        la $a0, string
-        syscall
-.end_macro
-.text
-j main
+.macro print_str (%str)                           # .macro print_str (%str)
+    .data                                         #     .data
+        string: .asciiz %str                      #         string: .asciiz %str
+    .text                                         #     .text
+        li $v0, 4                                 #         li $v0, 4
+        la $a0, string                            #         la $a0, string
+        syscall                                   #         syscall
+.end_macro                                        # .end_macro
+.text                                             # .text
+j main                                            # j main
 # ====================
 # jal call_GCD
 # args:
-#   $a0: x - i32
-#   $a1: y - i32
+#    $a0: x - i32
+#    $a1: y - i32
 # return:
 #    $v0: i32
 # ====================
-call_GCD:
+call_GCD:                                         # fn GCD(x: i32, y: i32) i32{
+    # save used s registers to stack
+    subiu $sp, $sp, 4                             #     $sp = &$sp[-1]
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
+                                                  #
     # body
-    bge $a0 0, if_end
-        sub $a0, $zero $a0
-    if_end:
-    bge $a1 0, if_end_2
-        sub $a1, $zero $a1
-    if_end_2:
-    bge $a0 $a1, if_end_4
-        move $t0 $a1
-        move $a1 $a0
-        move $a0 $t0
-    if_end_4:
-    loop_start:
-        rem $t0, $a0 $a1
-        move $a0 $a1
-        move $a1 $t0
-        ble $a1 0, loop_end
-    j loop_start
-    loop_end:
-    move $v0 $a0
-    jr $ra
-main:
-print_str("Number 1:\n  ")
-li $v0 5
-syscall
-move $s0 $v0
-print_str("Number 2:\n  ")
-li $v0 5
-syscall
-move $a0 $s0
-move $a1 $v0
-jal call_GCD
-move $s0 $v0
-
-print_str("GCD:\n  ")
-li $v0 1
-move $a0 $s0
-syscall
-
-print_str("\nLoop Test:\n\n")
-print_str("   .  -5 -4 -3 -2 -1  1  2  3  4  5\n")
-print_str("  -|-------------------------------\n")
-li $s0 -5
-loop_start_2:
-    ble $s0 0, if_end_8
-        print_str(" ")
-    if_end_8:
-    move $t0 $s0
-    li $v0 1
-    move $a0 $t0
-    syscall
-    print_str(" | ")
-    li $s3 -5
-    loop_start_4:
-        print_str("  ")
-        move $a0 $s0
-        move $a1 $s3
-        jal call_GCD
-        move $t0 $v0
-        li $v0 1
-        move $a0 $t0
-        syscall
-        add $s3, $s3 1
-        bnez $s3, if_end_10
-            add $s3, $s3 1
-        if_end_10:
-        bgt $s3 5, loop_end_4
-    j loop_start_4
-    loop_end_4:
-    print_str("\n")
-    add $s0, $s0 1
-    bnez $s0, if_end_14
-        add $s0, $s0 1
-    if_end_14:
-    bgt $s0 5, loop_end_2
-j loop_start_2
-loop_end_2:
+    bge $a0 0, if_end                             #     if x < 0 {
+        sub $a0, $zero $a0                        #         x = 0 - x
+    if_end:                                       #     }
+    bge $a1 0, if_end_2                           #     if y < 0 {
+        sub $a1, $zero $a1                        #         y = 0 - y
+    if_end_2:                                     #     }
+    bge $a0 $a1, if_end_4                         #     if x < y {
+        move $t0 $a1                              #         var temp: i32 = y
+        move $a1 $a0                              #         y = x
+        move $a0 $t0                              #         x = temp
+    if_end_4:                                     #     }
+    loop_start:                                   #     loop {
+        rem $t0, $a0 $a1                          #         var n: i32 = x % y
+        move $a0 $a1                              #         x = y
+        move $a1 $t0                              #         y = n
+        ble $a1 0, loop_end                       #         if y <= 0 { break; }
+    j loop_start                                  #     }
+    loop_end:                                     #     ^
+    move $v0 $a0                                  #     return$v0 = x
+                                                  #
+    # reload used s registers from stack
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = &$sp[1]
+jr $ra                                            # }
+main:                                             # main:
+print_str("Number 1:\n  ")                        # print_str("Number 1:\n  ")
+li $v0 5                                          # read_int()
+syscall                                           #
+move $s0, $v0                                     # var value1: i32 = read_int()
+print_str("Number 2:\n  ")                        # print_str("Number 2:\n  ")
+li $v0 5                                          # read_int()
+syscall                                           #
+move $a0 $s0                                      # .                  value1
+move $a1 $v0                                      # |                          value2
+jal call_GCD                                      # |              GCD(^^^^^^, ^^^^^^)
+move $s0, $v0                                     # var gcd: i32 = ^^^^^^^^^^^^^^^^^^^
+                                                  #
+print_str("GCD:\n  ")                             # print_str("GCD:\n  ")
+li $v0 1                                          # print_int(gcd)
+move $a0 $s0                                      #
+syscall                                           #
+                                                  #
+print_str("\nLoop Test:\n\n")                     # print_str("\nLoop Test:\n\n")
+print_str("   .  -5 -4 -3 -2 -1  1  2  3  4  5\n")# print_str("   .  -5 -4 -3 -2 -1  1  2  3  4  5\n")
+print_str("  -|-------------------------------\n")# print_str("  -|-------------------------------\n")
+li $s0 -5                                         # var x: i32 = -5
+loop_start_2:                                     # loop {
+    ble $s0 0, if_end_8                           #     if x > 0 {
+        print_str(" ")                            #         print_str(" ")
+    if_end_8:                                     #     }
+    move $t0 $s0                                  #     .         x
+    li $v0 1                                      #     print_int(^)
+    move $a0 $t0                                  #
+    syscall                                       #
+    print_str(" | ")                              #     print_str(" | ")
+    li $s1 -5                                     #     var y: i32 = -5
+    loop_start_4:                                 #     loop {
+        print_str("  ")                           #         print_str("  ")
+        move $a0 $s0                              #         .                       x
+        move $a1 $s1                              #         |                          y
+        jal call_GCD                              #         %%:register:v0:%% = GCD(^, ^)
+        move $t0 $v0                              #         .         gcd
+        li $v0 1                                  #         print_int(^^^)
+        move $a0 $t0                              #
+        syscall                                   #
+        add $s1, $s1 1                            #         y = y + 1
+        bnez $s1, if_end_10                       #         if y == 0 {
+            add $s1, $s1 1                        #             y = y + 1
+        if_end_10:                                #         }
+        bgt $s1 5, loop_end_4                     #         if y > 5 { break; }
+    j loop_start_4                                #     }
+    loop_end_4:                                   #     ^
+    print_str("\n")                               #     print_str("\n")
+    add $s0, $s0 1                                #     x = x + 1
+    bnez $s0, if_end_14                           #     if x == 0 {
+        add $s0, $s0 1                            #         x = x + 1
+    if_end_14:                                    #     }
+    bgt $s0 5, loop_end_2                         #     if x > 5 { break; }
+j loop_start_2                                    # }
+loop_end_2:                                       # ^
