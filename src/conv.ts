@@ -1400,7 +1400,7 @@ function commentate(code: Code): string[] {
     });
 
     let rcxt: string[] = resultComments.map(l => {
-        if (l.used) return l.indent + l.value;
+        if (l.used) return l.indent + l.value.replace(" ", "v");
         return l.indent + l.assignto + l.value;
     });
 
