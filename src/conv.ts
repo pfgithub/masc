@@ -1,7 +1,12 @@
 import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
 
 let enableEndLabel = false;
-let todo = "!TODO!";
+let todo = () => {
+    let lyncol = new Error()
+        .stack!.split("\n")[2]
+        .replace(/^.+:(\d+?):(\d+?)$/, ":$1:$2");
+    return "!TODO" + lyncol + "!";
+};
 
 let nvercmnt = (): BlockComment => ({
     msg:
@@ -201,7 +206,7 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
         return ce.call(expr.args, vnm, lines);
     } else if (lines) {
         let out = gentemp();
-        let exprOut = evalExpr(vnm, expr, { reg: out, name: todo }, lines);
+        let exprOut = evalExpr(vnm, expr, { reg: out, name: todo() }, lines);
         return {
             typ: exprOut.type,
             reg: out,
@@ -354,7 +359,7 @@ function evalDerefExpr(
             let tmp: { cmnt: InlineCommentPiece; reg: string };
             if (size != 1) {
                 let cmnt: OutComment = {
-                    out: todo,
+                    out: todo(),
                     msg: [index.cmnt, " * " + size],
                 };
                 tmp = { cmnt: cmnt, reg: gentemp() };
@@ -374,7 +379,7 @@ function evalDerefExpr(
             } else {
                 let added = gentemp();
                 let addedComment: OutComment = {
-                    out: todo,
+                    out: todo(),
                     msg: [tmp.cmnt, " + ", from.cmnt],
                 };
                 lines.push({
@@ -611,7 +616,7 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                 let typ = evalExpr(
                     argvnm,
                     arg,
-                    { reg: resvar, name: todo },
+                    { reg: resvar, name: todo() },
                     reslines,
                 );
                 matchTypes(typ.type, expctArg.typ);
@@ -792,7 +797,7 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
                 register: argNames[i],
                 pos: "!!this should never happen!!" as any,
             },
-            { reg: tmpVar, name: todo },
+            { reg: tmpVar, name: todo() },
             argsetLines,
         );
         ivnm.set(arg.name, {

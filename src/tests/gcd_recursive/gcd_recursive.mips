@@ -26,8 +26,8 @@ call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
     subiu $sp, $sp, 4                             #     $sp = $sp[-1]
     sw $ra, 0($sp)                                #     $sp[0] = $ra
                                                   #
-    move $t0 $a0                                  #     !TODO! = $a0
-    move $t1 $a1                                  #     !TODO! = $a1
+    move $t0 $a0                                  #     !TODO:690:33! = $a0
+    move $t1 $a1                                  #     !TODO:690:33! = $a1
     # body
     bnez $t1, if_end                              #     if b == 0 {
         move $v0 $t0                              #         .      a
