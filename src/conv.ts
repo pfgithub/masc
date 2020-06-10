@@ -255,9 +255,14 @@ function evalDerefExpr(
     vnm: VNM,
 ): { cmnt: OutComment; type: Type } {
     const derefExpr = dereferencingExpr;
-    if (derefExpr.expr !== "arrayindex" && derefExpr.expr !== "pointer")
+    if (
+        derefExpr.expr !== "arrayindex" &&
+        derefExpr.expr !== "pointer" &&
+        derefExpr.expr !== "arrayindexnomul"
+    )
         throw new Error(
-            "Expected dereferencingexpr eg .* or [i], got " + derefExpr.expr,
+            "Expected dereferencingexpr eg .* or [i] or [+i], got " +
+                derefExpr.expr,
         );
 
     let from = evalExprAnyOut(vnm, derefExpr.from, lines);
@@ -266,7 +271,10 @@ function evalDerefExpr(
             throw new Error(
                 "Can only dereference *pointer. got " + from.typ.type,
             );
-    } else if (derefExpr.expr === "arrayindex") {
+    } else if (
+        derefExpr.expr === "arrayindex" ||
+        derefExpr.expr === "arrayindexnomul"
+    ) {
         if (from.typ.type !== "arrayptr")
             throw new Error("Can only index [*]pointer. got " + from.typ.type);
     } else asun(derefExpr);
@@ -274,6 +282,7 @@ function evalDerefExpr(
         throw "never";
 
     let size = sizeof(from.typ.child);
+    if (derefExpr.expr === "arrayindexnomul") size = 1;
     let siz =
         size === 4
             ? "w"
@@ -341,10 +350,10 @@ function evalDerefExpr(
                 msg: [tmp.cmnt, " + ", from.cmnt],
             };
             lines.push({
-                text: `add ${markOut(added)}, ${tmp.reg} ${from.reg}`,
+                text: `addu ${markOut(added)}, ${tmp.reg} ${from.reg}`,
                 comment: addedComment,
             });
-            comment.msg = [ostc, from.cmnt, "[", addedComment, "]"];
+            comment.msg = [ostc, "(", addedComment, ").*"];
             lines.push({
                 text: `${instr} ${marked} (${added})`,
                 comment,
@@ -440,7 +449,11 @@ function evalExpr(
         return { type: resType, cmnt };
     } else if (expr.expr === "addressof") {
         return evalDerefExpr(outraw, "=", expr.of, "addressof", lines, vnm);
-    } else if (expr.expr === "arrayindex" || expr.expr === "pointer") {
+    } else if (
+        expr.expr === "arrayindex" ||
+        expr.expr === "pointer" ||
+        expr.expr === "arrayindexnomul"
+    ) {
         return evalDerefExpr(outraw, "=", expr, "load", lines, vnm);
     } else if (expr.expr === "undefined") {
         return { type: anytype(), cmnt: "undefined" };

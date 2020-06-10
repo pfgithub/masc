@@ -390,6 +390,7 @@ export type AstExpr =
     | (P & { expr: "call"; name: string; args: AstExpr[] })
     | (P & { expr: "undefined" })
     | (P & { expr: "arrayindex"; from: AstExpr; index: AstExpr })
+    | (P & { expr: "arrayindexnomul"; from: AstExpr; index: AstExpr })
     | (P & { expr: "pointer"; from: AstExpr })
     | (P & { expr: "addressof"; of: AstExpr })
     | (P & { expr: "data"; name: string; type: AstType });
@@ -815,6 +816,16 @@ l.set(
 );
 
 l.set(
+    "inmsuffix",
+    p("[+", _, o.expr, _, "]", _).scb((m, pos) => (q: AstExpr): AstExpr => ({
+        expr: "arrayindexnomul",
+        from: q,
+        index: m[2].val,
+        pos,
+    })),
+);
+
+l.set(
     "indexsuffix",
     p("[", _, o.expr, _, "]", _).scb((m, pos) => (q: AstExpr): AstExpr => ({
         expr: "arrayindex",
@@ -849,7 +860,11 @@ l.set(
 
 l.set(
     "suffixexpr",
-    p(o.noopexpr, _, star(or(o.indexsuffix, o.ptrfollowsuffix))).scb(m => {
+    p(
+        o.noopexpr,
+        _,
+        star(or(o.inmsuffix, o.indexsuffix, o.ptrfollowsuffix)),
+    ).scb(m => {
         let resexpr = m[0].val;
         for (let itm of m[2].val as any[]) {
             let suffixfn = itm.val.data.val;

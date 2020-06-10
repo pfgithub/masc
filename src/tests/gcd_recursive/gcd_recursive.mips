@@ -63,13 +63,13 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     move $t1 $zero                                #     index = 0
     loop_start:                                   #     loop {
         beq $t1 $a2, loop_end                     #         if index == len { break; }
-        mulo $t2, $t1 4                           #         temp =    index * 4
-        add $t3, $t2 $a0                          #         temp =    ^^^^^^^^^ + bArray
-        lw $t3 ($t3)                              #            bArray[^^^^^^^^^^^^^^^^^^]
-        mulo $t4, $t1 4                           #         temp =                                  index * 4
-        add $t5, $t4 $a1                          #         temp =                                  ^^^^^^^^^ + cArray
-        lw $t5 ($t5)                              #         temp =                           cArray[^^^^^^^^^^^^^^^^^^]
-        bne $t3 $t5, if_end_4                     #         if ^^^^^^^^^^^^^^^^^^^^^^^^^^ == ^^^^^^^^^^^^^^^^^^^^^^^^^^ {
+        mulo $t2, $t1 4                           #             index * 4
+        addu $t3, $t2 $a0                         #             ^^^^^^^^^ + bArray
+        lw $t3 ($t3)                              #            (^^^^^^^^^^^^^^^^^^).*
+        mulo $t4, $t1 4                           #         temp =                        index * 4
+        addu $t5, $t4 $a1                         #         temp =                        ^^^^^^^^^ + cArray
+        lw $t5 ($t5)                              #         temp =                       (^^^^^^^^^^^^^^^^^^).*
+        bne $t3 $t5, if_end_4                     #         if ^^^^^^^^^^^^^^^^^^^^^^ == ^^^^^^^^^^^^^^^^^^^^^^ {
             add $t0, $t0 1                        #             count = count + 1
         if_end_4:                                 #         }
         add $t1, $t1 1                            #         index = index + 1
@@ -83,39 +83,37 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
 jr $ra                                            # }
 main:                                             # main:
 move $s0 $zero                                    # index = 0
+lw $t0, len                                       #       @len
+mulo $s1, $t0 4                                   # len = ^^^^ * 4
 loop_start_2:                                     # loop {
-    lw $t0, len                                   #     temp =      @len
-    beq $s0 $t0, loop_end_2                       #     if index == ^^^^ { break; }
-    la $t0, x                                     #     temp =             @x
-    mulo $s1, $s0 4                               #     temp = index * 4
-    add $t0, $s1 $t0                              #     temp = ^^^^^^^^^ + ^^
-    lw $s2 ($t0)                                  #     a = @x[^^^^^^^^^^^^^^]
-    la $t0, y                                     #     temp =             @y
-    mulo $s3, $s0 4                               #     temp = index * 4
-    add $t0, $s3 $t0                              #     temp = ^^^^^^^^^ + ^^
-    lw $s4 ($t0)                                  #     b = @y[^^^^^^^^^^^^^^]
+    beq $s0 $s1, loop_end_2                       #     if index == len { break; }
+    la $t0, x                                     #     temp =       @x
+    addu $t0, $s0 $t0                             #          index + ^^
+    lb $s2 ($t0)                                  #     a = (^^^^^^^^^^).*
+    la $t0, y                                     #     temp =       @y
+    addu $t0, $s0 $t0                             #          index + ^^
+    lb $s3 ($t0)                                  #     b = (^^^^^^^^^^).*
     move $a0 $s2                                  #     temp =       a
-    move $a1 $s4                                  #     temp =          b
+    move $a1 $s3                                  #     temp =          b
     jal call_gcd                                  #     temp =   gcd(^, ^)
-    move $s5, $v0                                 #     result = ^^^^^^^^^
-    la $t0, z                                     #     temp =                  @z
-    mulo $s6, $s0 4                               #     temp =      index * 4
-    add $t0, $s6 $t0                              #     temp =      ^^^^^^^^^ + ^^
-    sw $s5 ($t0)                                  #     result = @z[^^^^^^^^^^^^^^]
+    move $s4, $v0                                 #     result = ^^^^^^^^^
+    la $t0, z                                     #     temp =            @z
+    addu $t0, $s0 $t0                             #     temp =    index + ^^
+    sb $s4 ($t0)                                  #     result = (^^^^^^^^^^).*
     print_str("GCD of (")                         #     print_str("GCD of (")
     li $v0 1                                      #     print_int(a)
     move $a0 $s2                                  #
     syscall                                       #
     print_str(", ")                               #     print_str(", ")
     li $v0 1                                      #     print_int(b)
-    move $a0 $s4                                  #
+    move $a0 $s3                                  #
     syscall                                       #
     print_str(") = ")                             #     print_str(") = ")
     li $v0 1                                      #     print_int(result)
-    move $a0 $s5                                  #
+    move $a0 $s4                                  #
     syscall                                       #
     print_str("\n")                               #     print_str("\n")
-    add $s0, $s0 1                                #     index = index + 1
+    add $s0, $s0 4                                #     index = index + 4
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")

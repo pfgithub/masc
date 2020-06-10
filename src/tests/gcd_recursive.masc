@@ -42,13 +42,14 @@ fn equal_count(bArray: [*]i32, cArray: [*]i32, len: i32) i32 {
 
 \main:
 var index: i32 = 0;
+var len = @i32:len * 4;
 loop {
-    if index == @i32:len {break;}
+    if index == len {break;}
     
-    var a = @[*]i32:x[index];
-    var b = @[*]i32:y[index];
+    var a = @[*]i32:x[+index];
+    var b = @[*]i32:y[+index];
     var result = gcd(a, b);
-    save @[*]i32:z[index] = result;
+    save @[*]i32:z[+index] = result;
     
     \print_str("GCD of (")
     !clear $call;
@@ -68,7 +69,7 @@ loop {
     \print_str("\n")
     !clear $call;
 	
-	index = index + 1;
+	index = index + 4;
 }
 
 \print_str("Equal count: ")
