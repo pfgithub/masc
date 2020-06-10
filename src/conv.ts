@@ -107,6 +107,7 @@ function cleancode(code: Code): Code {
 type Type =
     | { type: "u32" }
     | { type: "i32" }
+    // i8 cannot be added without updating load and store
     | { type: "u8" }
     | { type: "any" }
     | { type: "void" }
@@ -296,7 +297,7 @@ function evalDerefExpr(
         mode === "addressof"
             ? "la"
             : mode === "load"
-            ? "l" + siz
+            ? "l" + siz + (sizetmp === 1 ? "u" : "")
             : mode === "store"
             ? "s" + siz
             : asun(mode);
