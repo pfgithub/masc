@@ -103,30 +103,30 @@ loop_start_2:                                     # loop {
     add $t0, $s6 $t0                              #     temp =      ^^^^^^^^^ + ^^
     sw $s5 ($t0)                                  #     result = @z[^^^^^^^^^^^^^^]
     print_str("GCD of (")                         #     print_str("GCD of (")
-    li $v0 1                                      #     $v0 = 1
-    move $a0 $s2                                  #     $a0 = value
-    syscall                                       #     syscall
+    li $v0 1                                      #     print_int(a)
+    move $a0 $s2                                  #
+    syscall                                       #
     print_str(", ")                               #     print_str(", ")
-    li $v0 1                                      #     $v0 = 1
-    move $a0 $s4                                  #     $a0 = value
-    syscall                                       #     syscall
+    li $v0 1                                      #     print_int(b)
+    move $a0 $s4                                  #
+    syscall                                       #
     print_str(") = ")                             #     print_str(") = ")
-    li $v0 1                                      #     $v0 = 1
-    move $a0 $s5                                  #     $a0 = value
-    syscall                                       #     syscall
+    li $v0 1                                      #     print_int(result)
+    move $a0 $s5                                  #
+    syscall                                       #
     print_str("\n")                               #     print_str("\n")
     add $s0, $s0 1                                #     index = index + 1
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")
-la $a0, y                                         # temp =               @y
-la $a1, z                                         # temp =                   @z
-lw $a2, len                                       # temp =                       @len
-jal call_equal_count                              # temp =   equal_count(^^, ^^, ^^^^)
-move $t0, $v0                                     # !TODO! = ^^^^^^^^^^^^^^^^^^^^^^^^^
-li $v0 1                                          # $v0 = 1
-move $a0 $t0                                      # $a0 = value
-syscall                                           # syscall
+la $a0, y                                         # temp =                @y
+la $a1, z                                         # temp =                    @z
+lw $a2, len                                       # temp =                        @len
+jal call_equal_count                              # temp =    equal_count(^^, ^^, ^^^^)
+move $t0, $v0                                     # temp =    ^^^^^^^^^^^^^^^^^^^^^^^^^
+li $v0 1                                          # print_int(^^^^^^^^^^^^^^^^^^^^^^^^^)
+move $a0 $t0                                      #
+syscall                                           #
 print_str("\n")                                   # print_str("\n")
 # Output:
 #

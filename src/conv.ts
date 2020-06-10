@@ -584,7 +584,18 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     tempname: resvar,
                 });
             });
-            reslines.push(...mipsgen(fn.body, nvnm));
+            let callcomment: BlockComment = {
+                msg: [fn.name + "(", argComments, ")"],
+            };
+            let mgres = mipsgen(fn.body, nvnm);
+            reslines.push(
+                ...mgres.map((l, i) => ({
+                    text: l.text,
+                    // can't put on last line because it's a label that is removed
+                    comment: i == 0 ? callcomment : nocmnt(),
+                    indent: l.indent,
+                })),
+            );
             reslines.push({
                 text: returnMark.def + ":",
                 comment: { msg: "}" },
