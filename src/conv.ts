@@ -304,7 +304,7 @@ function evalDerefExpr(
     let marked =
         mode === "store" ? outOrStoreTo.reg : markOut(outOrStoreTo.reg);
     let ostc: InlineCommentPiece =
-        mode === "store" ? [outOrStoreTo.name, " = "] : "";
+        mode === "store" ? [" = ", outOrStoreTo.name] : "";
     let comment: OutComment = {
         out:
             typeof outOrStoreTo.name === "string"
@@ -313,7 +313,7 @@ function evalDerefExpr(
         msg: nvercmnt(),
     };
     if (derefExpr.expr === "pointer") {
-        comment.msg = [ostc, "&", from.cmnt];
+        comment.msg = ["&", from.cmnt, ostc];
         lines.push({
             text: `${instr} ${marked} (${from.reg})`,
             comment,
@@ -323,7 +323,7 @@ function evalDerefExpr(
         if (indexImmediate) {
             let iim = indexImmediate.value;
             let offset = iim * size;
-            comment.msg = [ostc, from.cmnt, "[" + indexImmediate.value + "]"];
+            comment.msg = [from.cmnt, "[" + indexImmediate.value + "]", ostc];
             lines.push({
                 text: `${instr} ${marked} ${offset || ""}(${from.reg})`,
                 comment,
@@ -355,7 +355,7 @@ function evalDerefExpr(
                 text: `addu ${markOut(added)}, ${tmp.reg} ${from.reg}`,
                 comment: addedComment,
             });
-            comment.msg = [ostc, "(", addedComment, ").*"];
+            comment.msg = ["(", addedComment, ").*", ostc];
             lines.push({
                 text: `${instr} ${marked} (${added})`,
                 comment,
