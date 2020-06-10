@@ -89,17 +89,17 @@ loop_start_2:                                     # loop {
     beq $s0 $s1, loop_end_2                       #     if index == len { break; }
     la $t0, x                                     #     |            @x
     addu $t0, $s0 $t0                             #     |    index + ^^
-    lb $s2 ($t0)                                  #     a = (^^^^^^^^^^).*
+    lw $s2 ($t0)                                  #     a = (^^^^^^^^^^).*
     la $t0, y                                     #     |            @y
     addu $t0, $s0 $t0                             #     |    index + ^^
-    lb $s3 ($t0)                                  #     b = (^^^^^^^^^^).*
+    lw $s3 ($t0)                                  #     b = (^^^^^^^^^^).*
     move $a0 $s2                                  #     |            a
     move $a1 $s3                                  #     |               b
     jal call_gcd                                  #     |        gcd(^, ^)
     move $s4, $v0                                 #     result = ^^^^^^^^^
     la $t0, z                                     #     |                 @z
     addu $t0, $s0 $t0                             #     |         index + ^^
-    sb $s4 ($t0)                                  #     result = (^^^^^^^^^^).*
+    sw $s4 ($t0)                                  #     result = (^^^^^^^^^^).*
     print_str("GCD of (")                         #     print_str("GCD of (")
     li $v0 1                                      #     print_int(a)
     move $a0 $s2                                  #

@@ -281,12 +281,13 @@ function evalDerefExpr(
     if (from.typ.type !== "pointer" && from.typ.type !== "arrayptr")
         throw "never";
 
-    let size = sizeof(from.typ.child);
+    let sizetmp = sizeof(from.typ.child);
+    let size = sizetmp;
     if (derefExpr.expr === "arrayindexnomul") size = 1;
     let siz =
-        size === 4
+        sizetmp === 4
             ? "w"
-            : size === 1
+            : sizetmp === 1
             ? "b"
             : // prettier-ignore
               (() => {throw new Error("unsupported size " + size
