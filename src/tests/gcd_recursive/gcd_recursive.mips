@@ -16,8 +16,8 @@ j main
 # ====================
 # jal call_gcd
 # args:
-#   $a0: a - i32
-#   $a1: b - i32
+#    $a0: a - i32
+#    $a1: b - i32
 # return:
 #    $v0: i32
 # ====================
@@ -47,9 +47,9 @@ jr $ra
 # ====================
 # jal call_equal_count
 # args:
-#   $a0: bArray - [*]i32
-#   $a1: cArray - [*]i32
-#   $a2: len - i32
+#    $a0: bArray - [*]i32
+#    $a1: cArray - [*]i32
+#    $a2: len - i32
 # return:
 #    $v0: i32
 # ====================

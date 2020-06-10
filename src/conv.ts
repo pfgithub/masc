@@ -609,7 +609,7 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
         "# args:" + (fn.args.length === 0 ? " none" : ""),
         ...fn.args.map(
             (arg, i) =>
-                "#   $" +
+                "#    $" +
                 argNames[i] +
                 ": " +
                 arg.name +
