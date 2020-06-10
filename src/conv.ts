@@ -835,7 +835,7 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
         });
         bodyLines.push({
             text: "subiu $sp, $sp, " + svars.length * 4,
-            comment: { out: "$sp", msg: "$sp[-" + svars.length + "]" },
+            comment: { out: "$sp", msg: "&$sp[-" + svars.length + "]" },
         });
     }
     svars.forEach((svar, i) => {
@@ -873,7 +873,7 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
     if (svars.length > 0)
         bodyLines.push({
             text: "addiu $sp, $sp, " + svars.length * 4,
-            comment: { out: "$sp", msg: "$sp[" + svars.length + "]" },
+            comment: { out: "$sp", msg: "&$sp[" + svars.length + "]" },
         });
 
     let endLabel = mklabel("skip_" + fn.name);
