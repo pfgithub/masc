@@ -32,19 +32,20 @@ fn gcd(a: i32, b: i32) i32 {
 fn equal_count(bArray: [*]i32, cArray: [*]i32, len: i32) i32 {
     var count: i32 = 0;
     var index: i32 = 0;
+	var size = len * 4;
     loop {
-        if index == len {break;}
-        if bArray[index] == cArray[index] {count = count + 1;}
-		index = index + 1;
+        if index == size {break;}
+        if bArray[+index] == cArray[+index] {count = count + 1;}
+		index = index + 4;
     }
     return count;
 }
 
 \main:
 var index: i32 = 0;
-var len = @i32:len * 4;
+var size = @i32:len * 4;
 loop {
-    if index == len {break;}
+    if index == size {break;}
     
     var a = @[*]i32:x[+index];
     var b = @[*]i32:y[+index];
