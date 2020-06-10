@@ -797,7 +797,7 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
                 register: argNames[i],
                 pos: "!!this should never happen!!" as any,
             },
-            { reg: tmpVar, name: todo() },
+            { reg: tmpVar, name: arg.name },
             argsetLines,
         );
         ivnm.set(arg.name, {
