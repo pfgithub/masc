@@ -1,4 +1,4 @@
-import { parse, Ast, AstType, AstExpr, FnAst } from "./build";
+import { parse, Ast, AstType, AstExpr, FnAst, Pos } from "./build";
 
 let enableEndLabel = false;
 let todo = () => {
@@ -12,6 +12,23 @@ let nvercmnt = (): BlockComment => ({
     msg:
         "You should never see this !!!+!+!+!+!+!)_++#!+_#*(!+*!#(+)#!(*!#*()!#*#!*)!#*+)_!#()_!#+_()#!_()+",
 });
+
+let poserr = (pos: Pos, msg: string) => {
+    let err = new Error(
+        pos.start.line +
+            1 +
+            ":" +
+            (pos.start.col + 1) +
+            "-" +
+            (pos.end.line + 1) +
+            ":" +
+            (pos.end.col + 1) +
+            " - " +
+            msg,
+    );
+    (err as any).pos = pos;
+    return err;
+};
 
 type Code = Line[];
 type Line = { text: string; comment: BlockComment; indent?: number };
@@ -192,7 +209,8 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
     } else if (expr.expr === "variable") {
         let va = vnm.get(expr.var);
         if (!va)
-            throw new Error(
+            throw poserr(
+                expr.pos,
                 "variable not found " +
                     expr.var +
                     " (at: L" +
@@ -202,7 +220,7 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
         return { reg: va.tempname, typ: va.type, cmnt: expr.var };
     } else if (expr.expr === "call" && lines) {
         let ce = vnm.getfn(expr.name);
-        if (!ce) throw new Error("unknown fn " + expr.name);
+        if (!ce) throw poserr(expr.pos, "unknown fn " + expr.name);
         return ce.call(expr.args, vnm, lines);
     } else if (lines) {
         let out = gentemp();
@@ -220,11 +238,11 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: Code): ExprRetV {
     }
 }
 
-function matchTypes(ta: Type, tb: Type): Type {
+function matchTypes(ta: Type, tb: Type, pos: Pos): Type {
     if (ta.type !== "any") {
         if (tb.type === "any") return ta;
         if (tb.type === ta.type) return ta;
-        throw new Error("Incompatible Types: " + ta.type + ", " + tb.type);
+        throw poserr(pos, "Incompatible Types: " + ta.type + ", " + tb.type);
     }
     if (tb.type !== "any") {
         return tb;
@@ -266,7 +284,8 @@ function evalDerefExpr(
         derefExpr.expr !== "pointer" &&
         derefExpr.expr !== "arrayindexnomul"
     )
-        throw new Error(
+        throw poserr(
+            derefExpr.pos,
             "Expected dereferencingexpr eg .* or [i] or [+i], got " +
                 derefExpr.expr,
         );
@@ -281,7 +300,8 @@ function evalDerefExpr(
             : evalExprAnyOut(vnm, derefExpr.from, lines);
     if (derefExpr.expr === "pointer") {
         if (from.typ.type !== "pointer")
-            throw new Error(
+            throw poserr(
+                derefExpr.pos,
                 "Can only dereference *pointer. got " + from.typ.type,
             );
     } else if (
@@ -289,10 +309,13 @@ function evalDerefExpr(
         derefExpr.expr === "arrayindexnomul"
     ) {
         if (from.typ.type !== "arrayptr")
-            throw new Error("Can only index [*]pointer. got " + from.typ.type);
+            throw poserr(
+                derefExpr.pos,
+                "Can only index [*]pointer. got " + from.typ.type,
+            );
     } else asun(derefExpr);
     if (from.typ.type !== "pointer" && from.typ.type !== "arrayptr")
-        throw "never";
+        throw new Error("never");
 
     let sizetmp = sizeof(from.typ.child);
     let size = sizetmp;
@@ -303,7 +326,7 @@ function evalDerefExpr(
             : sizetmp === 1
             ? "b"
             : // prettier-ignore
-              (() => {throw new Error("unsupported size " + size
+              (() => {throw poserr(derefExpr.pos, "unsupported size " + size
                       +  "; expected 1 or 4 byte size.", ); })();
     let instr =
         mode === "addressof"
@@ -355,7 +378,7 @@ function evalDerefExpr(
         } else {
             let index = evalExprAnyOut(vnm, derefExpr.index, lines);
             if (index.typ.type !== "u32" && index.typ.type !== "i32")
-                throw new Error("Index must be u32 or i32");
+                throw poserr(derefExpr.pos, "Index must be u32 or i32");
             let tmp: { cmnt: InlineCommentPiece; reg: string };
             if (size != 1) {
                 let cmnt: OutComment = {
@@ -441,7 +464,7 @@ function evalExpr(
     } else if (expr.expr === "op") {
         let a = evalExprAnyOut(vnm, expr.left, lines);
         let b = evalExprAllowImmediate(vnm, expr.right, lines);
-        let resType = matchTypes(a.typ, b.typ);
+        let resType = matchTypes(a.typ, b.typ, expr.pos);
 
         if (expr.op === "^") {
             let cmnt: OutComment;
@@ -452,7 +475,7 @@ function evalExpr(
                     comment: cmnt,
                 });
             } else {
-                throw new Error("unsupported type " + resType.type);
+                throw poserr(expr.pos, "unsupported type " + resType.type);
             }
             return { type: resType, cmnt };
         }
@@ -468,7 +491,8 @@ function evalExpr(
         let u: string;
         if (resType.type === "u32" || resType.type === "arrayptr") u = "u";
         else if (resType.type === "i32") u = "";
-        else throw new Error("Add does not support type " + resType.type);
+        else
+            throw poserr(expr.pos, "Add does not support type " + resType.type);
 
         let cmnt: OutComment = {
             out: outname,
@@ -493,7 +517,7 @@ function evalExpr(
         return { type: anytype(), cmnt: "undefined" };
     } else if (expr.expr === "call") {
         let ce = vnm.getfn(expr.name);
-        if (!ce) throw new Error("unknown fn " + expr.name);
+        if (!ce) throw poserr(expr.pos, "unknown fn " + expr.name);
         let callres = ce.call(expr.args, vnm, lines);
         let comment: OutComment = { out: outname, msg: callres.cmnt };
         lines.push({ text: "move " + out + ", " + callres.reg, comment });
@@ -515,7 +539,7 @@ function evalExpr(
         }
         return { type, cmnt };
     }
-    throw new Error("Not implemented expr: " + expr.expr);
+    throw poserr(expr.pos, "Not implemented expr: " + expr.expr);
 }
 
 type VarInfo = {
@@ -599,7 +623,10 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
             let nvnm = makeVariableNameMap(vnm);
             let returnTemp = gentemp();
             nvnm.setFnReturn(returnTemp, "return", (result, lines, rct) => {
-                matchTypes(type, result);
+                matchTypes(type, result, {
+                    start: { line: -1, col: -1, index: -1 },
+                    end: { line: -1, col: -1, index: -1 },
+                });
                 lines.push({
                     text: "j " + returnMark.ref,
                     comment: {
@@ -608,7 +635,7 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                 });
             });
             if (args.length !== expctArgs.length)
-                throw new Error("wrong arg count");
+                throw poserr(args[0].pos, "wrong arg count");
             let argComments: InlineCommentPiece[] = [];
             expctArgs.forEach((expctArg, i) => {
                 let arg = args[i];
@@ -619,7 +646,7 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
                     { reg: resvar, name: todo() },
                     reslines,
                 );
-                matchTypes(typ.type, expctArg.typ);
+                matchTypes(typ.type, expctArg.typ, arg.pos);
 
                 // easier than making a arrayJoin fn
                 // and probably faster
@@ -691,7 +718,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
     vnm.setfn(fn.name, {
         call: (args, argvnm, reslines): ExprRetV => {
             if (args.length !== expctArgs.length)
-                throw new Error("wrong arg count");
+                throw poserr(args[0].pos, "wrong arg count");
 
             let argComments: InlineCommentPiece[] = [];
             expctArgs.forEach((expctArg, i) => {
@@ -711,7 +738,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
                 );
                 if (i != 0) argComments.push(", ");
                 argComments.push(typ.cmnt);
-                matchTypes(typ.type, expctArg.typ);
+                matchTypes(typ.type, expctArg.typ, arg.pos);
             });
             // todo would prefer fn(^^, ^^^^^^^, ^^^^)
             // eg:
@@ -772,7 +799,10 @@ function insertNormalFnBody(vnm: VNM, rescode: Code, fn: RealFnInfo) {
         genreg("v0"),
         "return$v0",
         (result, lines, returncomment) => {
-            matchTypes(result, fn.returntype);
+            matchTypes(result, fn.returntype, {
+                start: { line: -1, col: -1, index: -1 },
+                end: { line: -1, col: -1, index: -1 },
+            });
             // caller should extract out v0
             lines.push({
                 text: "j " + fn.deinitLabel.ref,
@@ -977,7 +1007,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             let resType: Type;
             if (line.type) {
                 let defType = evalType(line.type);
-                resType = matchTypes(defType, exprResultType.type); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
+                resType = matchTypes(defType, exprResultType.type, line.pos); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
                 oc.out = "var " + oc.out + ": " + printType(resType);
             } else {
                 resType = exprResultType.type;
@@ -998,16 +1028,16 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             );
             // rt.out = "var name"
             // if we were doing that, but we aren't for unknown reasons.
-            matchTypes(eao.typ, rt.type);
+            matchTypes(eao.typ, rt.type, line.pos);
         } else if (line.ast === "if") {
             let left = evalExprAnyOut(vnm, line.condleft, code);
             let right = evalExprAllowImmediate(vnm, line.condright, code);
-            let conditionType = matchTypes(left.typ, right.typ);
+            let conditionType = matchTypes(left.typ, right.typ, line.pos);
             let u: string;
             if (conditionType.type === "u32") u = "u";
             else if (conditionType.type === "u8") u = "u";
             else if (conditionType.type === "i32") u = "";
-            else throw new Error("unsupported if type " + conditionType);
+            else throw poserr(line.pos, "unsupported if type " + conditionType);
             // this would be much more fun to code in zig
             // I didn't want to because it would require setting up a
             //    parser though and I've already done that twice and
@@ -1104,15 +1134,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             code.push({ text: endLbl.def + ":", comment: { msg: "^" } });
         } else if (line.ast === "continue") {
             let lp = vnm.getLoop();
-            if (!lp) throw new Error("continue not in loop");
+            if (!lp) throw poserr(line.pos, "continue not in loop");
             code.push({ text: "j " + lp.start, comment: { msg: "continue;" } });
         } else if (line.ast === "break") {
             let lp = vnm.getLoop();
-            if (!lp) throw new Error("break not in loop");
+            if (!lp) throw poserr(line.pos, "break not in loop");
             code.push({ text: "j " + lp.end, comment: { msg: "break;" } });
         } else if (line.ast === "return") {
             let fnreturn = vnm.getFnReturn();
-            if (!fnreturn) throw new Error("return not in fn");
+            if (!fnreturn) throw poserr(line.pos, "return not in fn");
             let evlxpr = evalExpr(
                 vnm,
                 line.returnv,
@@ -1123,12 +1153,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
         } else if (line.ast === "fn") {
             let fni = vnm.getfn(line.name);
             if (!fni)
-                throw new Error("uuh... this should never happen: " + fni);
+                throw poserr(
+                    line.pos,
+                    "uuh... this should never happen: " + fni,
+                );
             if (!line.inline) insertNormalFnBody(vnm, code, fni.real!);
         } else if (line.ast === "expr") {
             let res = evalExprAnyOut(vnm, line.expr, code);
             if (res.typ.type !== "void")
-                throw new Error("unused value " + res.typ);
+                throw poserr(line.pos, "unused value " + res.typ);
         } else if (line.ast === "save") {
             let value = evalExprAnyOut(vnm, line.value, code);
             let rest = evalDerefExpr(
@@ -1140,7 +1173,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
                 vnm,
             );
             rest.cmnt.out = undefined;
-            matchTypes(value.typ, rest.type);
+            matchTypes(value.typ, rest.type, line.pos);
         } else {
             asun(line);
         }
