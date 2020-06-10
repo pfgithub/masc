@@ -80,12 +80,14 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     lw $ra, 0($sp)                                #     $ra = $sp[0]
     addiu $sp, $sp, 4                             #     $sp = $sp[1]
 jr $ra                                            # }
+                                                  #
 main:                                             # main:
 move $s0 $zero                                    # index = 0
 lw $t0, len                                       # .      @len
 mulo $s1, $t0 4                                   # size = ^^^^ * 4
 loop_start_2:                                     # loop {
     beq $s0 $s1, loop_end_2                       #     if index == size { break; }
+                                                  #
     lw $s2 x($s0)                                 #     a = (index + @x).*
     lw $s3 y($s0)                                 #     b = (index + @y).*
     move $a0 $s2                                  #     .            a
@@ -93,23 +95,33 @@ loop_start_2:                                     # loop {
     jal call_gcd                                  #     |        gcd(^, ^)
     move $s4, $v0                                 #     result = ^^^^^^^^^
     sw $s4 z($s0)                                 #     (index + @z).* = result
+                                                  #
     print_str("GCD of (")                         #     print_str("GCD of (")
+                                                  #
     li $v0 1                                      #     print_int(a)
     move $a0 $s2                                  #
     syscall                                       #
+                                                  #
     print_str(", ")                               #     print_str(", ")
+                                                  #
     li $v0 1                                      #     print_int(b)
     move $a0 $s3                                  #
     syscall                                       #
+                                                  #
     print_str(") = ")                             #     print_str(") = ")
+                                                  #
     li $v0 1                                      #     print_int(result)
     move $a0 $s4                                  #
     syscall                                       #
+                                                  #
     print_str("\n")                               #     print_str("\n")
+                                                  #
     add $s0, $s0 4                                #     index = index + 4
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
+                                                  #
 print_str("Equal count: ")                        # print_str("Equal count: ")
+                                                  #
 la $a0, y                                         # .                     @y
 la $a1, z                                         # |                         @z
 lw $a2, len                                       # |                             @len
@@ -118,7 +130,13 @@ move $t0, $v0                                     # |         ^^^^^^^^^^^^^^^^^^
 li $v0 1                                          # print_int(^^^^^^^^^^^^^^^^^^^^^^^^^)
 move $a0 $t0                                      #
 syscall                                           #
+                                                  #
 print_str("\n")                                   # print_str("\n")
+                                                  #
+                                                  #
+                                                  #
+                                                  #
+                                                  #
 # Output:
 #
 # GCD of (20, 5) = 5

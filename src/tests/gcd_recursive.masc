@@ -40,47 +40,51 @@ fn equal_count(bArray: [*]i32, cArray: [*]i32, len: i32) i32 {
     }
     return count;
 }
-
+\
 \main:
 var index: i32 = 0;
 var size = @i32:len * 4;
 loop {
     if index == size {break;}
-    
+    \
     var a = @[*]i32:x[+index];
     var b = @[*]i32:y[+index];
     var result = gcd(a, b);
     save @[*]i32:z[+index] = result;
-    
+    \
     \print_str("GCD of (")
     !clear $call;
-    
+    \
     print_int(a);
-    
+    \
     \print_str(", ")
     !clear $call;
-    
+    \
     print_int(b);
-    
+    \
     \print_str(") = ")
     !clear $call;
-    
+    \
     print_int(result);
-    
+    \
     \print_str("\n")
     !clear $call;
-	
+	\
 	index = index + 4;
 }
-
+\
 \print_str("Equal count: ")
 !clear $call;
-
+\
 print_int(equal_count(@[*]i32:y, @[*]i32:z, @i32:len));
-
+\
 \print_str("\n")
 !clear $call;
-
+\
+\
+\
+\
+\
 \# Output:
 \#
 \# GCD of (20, 5) = 5
