@@ -128,3 +128,15 @@ li $v0 1
 move $a0 $t0
 syscall
 print_str("\n")
+# Output:
+#
+# GCD of (20, 5) = 5
+# GCD of (9, 7) = 1
+# GCD of (432, 226) = 2
+# GCD of (24, 18) = 6
+# GCD of (49, 7) = 7
+# GCD of (339, 9) = 3
+# GCD of (63, 9) = 9
+# Equal count: 3
+# 
+# -- program is finished running (dropped off bottom) --
