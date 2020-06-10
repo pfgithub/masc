@@ -1441,7 +1441,7 @@ function commentate(code: Code): string[] {
     }
 
     let rcxt: string[] = resultComments.map(l => {
-        if (l.used) return l.indent + l.value.replace("       ", "temp = ");
+        if (l.used) return l.indent + l.value.replace(" ", "|");
         return l.indent + l.value;
     });
 
