@@ -1382,7 +1382,9 @@ function commentate(code: Code): string[] {
             commentSet.delete(cmnt);
             return { text: "^".repeat(flen), idxs: [...linesIdxs] };
         }
-        return { text: ":TODO:", idxs: [] };
+        let resv = printComment(cmnt.msg, left);
+        if (resv.idxs.length !== 0) throw new Error("uh oh ");
+        return { text: resv.text, idxs: [] };
     };
     code.forEach((line, i) => {
         let comment = line.comment;
