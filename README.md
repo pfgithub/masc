@@ -23,7 +23,7 @@ $a0 = gcd_value;
 !clear $call;
 ```
 
-|
+|  
 v
 
 ```mips
