@@ -699,7 +699,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
                 // evalExpr could be named better to make it clear that
                 // it outputs into a register
                 let argnamenm =
-                    "$" + argNames[i] + " (" + expctArgs[i].name + ")";
+                    "var $" + argNames[i] + " (" + expctArgs[i].name + ")";
                 let typ = evalExpr(
                     argvnm,
                     arg,
@@ -973,12 +973,15 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
                 { reg: tempname, name: line.name },
                 code,
             );
+            let oc = exprResultType.cmnt as OutComment;
             let resType: Type;
             if (line.type) {
                 let defType = evalType(line.type);
                 resType = matchTypes(defType, exprResultType.type); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
+                oc.out = "var " + oc.out + ": " + printType(resType);
             } else {
                 resType = exprResultType.type;
+                oc.out = "var " + oc.out;
             }
             vnm.set(line.name, { type: resType, tempname });
         } else if (line.ast === "setvar") {

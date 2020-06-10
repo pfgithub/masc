@@ -59,9 +59,9 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
     sw $ra, 0($sp)                                #     $sp[0] = $ra
                                                   #
     # body
-    move $t0 $zero                                #     count = 0
-    move $t1 $zero                                #     index = 0
-    mulo $t2, $a2 4                               #     size = len * 4
+    move $t0 $zero                                #     var count: i32 = 0
+    move $t1 $zero                                #     var index: i32 = 0
+    mulo $t2, $a2 4                               #     var size = len * 4
     loop_start:                                   #     loop {
         beq $t1 $t2, loop_end                     #         if index == size { break; }
         addu $t3, $t1 $a0                         #         .   index + bArray
@@ -82,18 +82,18 @@ call_equal_count:                                 # fn equal_count(bArray: [*]i3
 jr $ra                                            # }
                                                   #
 main:                                             # main:
-move $s0 $zero                                    # index = 0
-lw $t0, len                                       # .      @len
-mulo $s1, $t0 4                                   # size = ^^^^ * 4
+move $s0 $zero                                    # var index: i32 = 0
+lw $t0, len                                       # .          @len
+mulo $s1, $t0 4                                   # var size = ^^^^ * 4
 loop_start_2:                                     # loop {
     beq $s0 $s1, loop_end_2                       #     if index == size { break; }
                                                   #
-    lw $s2 x($s0)                                 #     a = (index + @x).*
-    lw $s3 y($s0)                                 #     b = (index + @y).*
-    move $a0 $s2                                  #     .            a
-    move $a1 $s3                                  #     |               b
-    jal call_gcd                                  #     |        gcd(^, ^)
-    move $s4, $v0                                 #     result = ^^^^^^^^^
+    lw $s2 x($s0)                                 #     var a = (index + @x).*
+    lw $s3 y($s0)                                 #     var b = (index + @y).*
+    move $a0 $s2                                  #     .                a
+    move $a1 $s3                                  #     |                   b
+    jal call_gcd                                  #     |            gcd(^, ^)
+    move $s4, $v0                                 #     var result = ^^^^^^^^^
     sw $s4 z($s0)                                 #     (index + @z).* = result
                                                   #
     print_str("GCD of (")                         #     print_str("GCD of (")
