@@ -33,9 +33,9 @@ call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
         move $v0 $t0                              #         v      a
         j deinit_gcd                              #         return ^;
     if_end:                                       #     }
-    move $a0 $t1                                  #     v   b
-    rem $a1, $t0 $t1                              #     v      a % b
-    jal call_gcd                                  #     gcd(^,v^^^^^)
+    move $a0 $t1                                  #     v               b
+    rem $a1, $t0 $t1                              #     v                  a % b
+    jal call_gcd                                  #     v           gcd(^, ^^^^^)
     move $v0, $v0                                 #     return$v0 = ^^^^^^^^^^^^^
                                                   #
 deinit_gcd:                                       # cleanup:
@@ -86,17 +86,17 @@ move $s0 $zero                                    # index = 0
 loop_start_2:                                     # loop {
     lw $t0, len                                   #     v           @len
     beq $s0 $t0, loop_end_2                       #     if index == ^^^^ { :TODO: }
-    la $t0, x                                     #     v                  @x
-    mulo $s1, $s0 4                               #     v      index * 4
-    add $t0, $s1 $t0                              #     v      ^^^^^^^^^ + ^^
+    la $t0, x                                     #     v                      @x
+    mulo $s1, $s0 4                               #     v          index * 4
+    add $t0, $s1 $t0                              #     v          ^^^^^^^^^ + ^^
     lw $s2 ($t0)                                  #     a = :TODO:[^^^^^^^^^^^^^^]
-    la $t0, y                                     #     v                  @y
-    mulo $s3, $s0 4                               #     v      index * 4
-    add $t0, $s3 $t0                              #     v      ^^^^^^^^^ + ^^
+    la $t0, y                                     #     v                      @y
+    mulo $s3, $s0 4                               #     v          index * 4
+    add $t0, $s3 $t0                              #     v          ^^^^^^^^^ + ^^
     lw $s4 ($t0)                                  #     b = :TODO:[^^^^^^^^^^^^^^]
-    move $a0 $s2                                  #     v   a
-    move $a1 $s4                                  #     v      b
-    jal call_gcd                                  #     gcd(^,v^)
+    move $a0 $s2                                  #     v            a
+    move $a1 $s4                                  #     v               b
+    jal call_gcd                                  #     v        gcd(^, ^)
     move $s5, $v0                                 #     result = ^^^^^^^^^
     la $t0, z                                     #     v                           @z
     mulo $s6, $s0 4                               #     v               index * 4
@@ -119,10 +119,10 @@ loop_start_2:                                     # loop {
 j loop_start_2                                    # }
 loop_end_2:                                       # ^
 print_str("Equal count: ")                        # print_str("Equal count: ")
-la $a0, y                                         # v           @y
-la $a1, z                                         # v               @z
-lw $a2, len                                       # v                   @len
-jal call_equal_count                              # equal_count(^^,v^^, ^^^^)
+la $a0, y                                         # v                    @y
+la $a1, z                                         # v                        @z
+lw $a2, len                                       # v                            @len
+jal call_equal_count                              # v        equal_count(^^, ^^, ^^^^)
 move $t0, $v0                                     # !TODO! = ^^^^^^^^^^^^^^^^^^^^^^^^^
 li $v0 1                                          # $v0 = 1
 move $a0 $t0                                      # $a0 = value

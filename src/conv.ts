@@ -1347,6 +1347,7 @@ function commentate(code: Code): string[] {
         assignto: string;
         used: boolean;
         indent: string;
+        idxs: number[];
     };
     let resultComments: ResultItem[] = [];
     let commentSet = new Map<BlockComment, number[]>();
@@ -1388,20 +1389,34 @@ function commentate(code: Code): string[] {
         let indent = "    ".repeat(line.indent || 0);
         let left = comment.out ? comment.out + " = " : "";
         let prcres = printComment(comment.msg, 0);
-        let fidx =
-            resultComments.push({
-                indent,
-                value: prcres.text,
-                assignto: left,
-                used: false,
-            }) - 1;
+        let fidx = resultComments.length;
+        resultComments.push({
+            indent,
+            value: prcres.text,
+            assignto: left,
+            used: false,
+            idxs: new Error("uh oh") as any,
+        });
         if (fidx !== i) throw new Error("never");
-        commentSet.set(comment, [...prcres.idxs, fidx]);
+        let idxs = [...prcres.idxs, fidx];
+        commentSet.set(comment, idxs);
+        resultComments[fidx].idxs = idxs;
     });
+
+    for (let l of resultComments) {
+        if (l.used) continue;
+        let leftdent = " ".repeat(l.assignto.length);
+        for (let idx of l.idxs) {
+            if (resultComments[idx] === l) continue;
+            if (!resultComments[idx].used) throw new Error("uh oh");
+            resultComments[idx].value = leftdent + resultComments[idx].value;
+        }
+        l.value = l.assignto + l.value;
+    }
 
     let rcxt: string[] = resultComments.map(l => {
         if (l.used) return l.indent + l.value.replace(" ", "v");
-        return l.indent + l.assignto + l.value;
+        return l.indent + l.value;
     });
 
     let rescode: string[] = [];
