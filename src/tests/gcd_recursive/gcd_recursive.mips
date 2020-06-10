@@ -1,0 +1,130 @@
+.macro print_str (%str)
+    .data
+        string: .asciiz %str
+    .text
+        li $v0, 4
+        la $a0, string
+        syscall
+.end_macro
+.data
+    x:   .word 20, 9, 432, 24, 49, 339, 63
+    y:   .word 5,  7, 226, 18, 7,  9,   9
+    z:   .word 0,  0, 0,   0,  0,  0,   0
+    len: .word 7
+.text
+j main
+# ====================
+# jal call_gcd
+# args:
+#   $a0: a - i32
+#   $a1: b - i32
+# return:
+#    $v0: i32
+# ====================
+call_gcd:
+    # save used s registers to stack
+    subiu $sp, $sp, 4
+    sw $ra, 0($sp)
+    
+    move $t0 $a0
+    move $t1 $a1
+    # body
+    bnez $t1, if_end
+        move $v0 $t0
+        j deinit_gcd
+    if_end:
+    move $a0 $t1
+    rem $a1, $t0 $t1
+    jal call_gcd
+    move $v0 $v0
+    deinit_gcd:
+    
+    # reload used s registers from stack
+    lw $ra, 0($sp)
+    addiu $sp, $sp, 4
+jr $ra
+
+# ====================
+# jal call_equal_count
+# args:
+#   $a0: bArray - [*]i32
+#   $a1: cArray - [*]i32
+#   $a2: len - i32
+# return:
+#    $v0: i32
+# ====================
+call_equal_count:
+    # save used s registers to stack
+    subiu $sp, $sp, 4
+    sw $ra, 0($sp)
+    
+    # body
+    move $t0 $zero
+    move $t1 $zero
+    loop_start:
+        beq $t1 $a2, loop_end
+        mulo $t2, $t1 4
+        add $t3, $t2 $a0
+        lw $t3 ($t3)
+        mulo $t4, $t1 4
+        add $t5, $t4 $a1
+        lw $t5 ($t5)
+        bne $t3 $t5, if_end_4
+            add $t0, $t0 1
+        if_end_4:
+        add $t1, $t1 1
+    j loop_start
+    loop_end:
+    move $v0 $t0
+    
+    # reload used s registers from stack
+    lw $ra, 0($sp)
+    addiu $sp, $sp, 4
+jr $ra
+main:
+move $s0 $zero
+loop_start_2:
+    lw $t0, len
+    beq $s0 $t0, loop_end_2
+    la $t0, x
+    mulo $s1, $s0 4
+    add $t0, $s1 $t0
+    lw $s2 ($t0)
+    la $t0, y
+    mulo $s3, $s0 4
+    add $t0, $s3 $t0
+    lw $s4 ($t0)
+    move $a0 $s2
+    move $a1 $s4
+    jal call_gcd
+    move $s5 $v0
+    la $t0, z
+    mulo $s6, $s0 4
+    add $t0, $s6 $t0
+    sw $s5 ($t0)
+    print_str("GCD of (")
+    li $v0 1
+    move $a0 $s2
+    syscall
+    print_str(", ")
+    li $v0 1
+    move $a0 $s4
+    syscall
+    print_str(") = ")
+    li $v0 1
+    move $a0 $s5
+    syscall
+    print_str("\n")
+    add $s0, $s0 1
+j loop_start_2
+loop_end_2:
+print_str("Equal count: ")
+la $a0, y
+la $a1, z
+lw $a2, len
+jal call_equal_count
+move $t0 $v0
+li $v0 1
+move $a0 $t0
+syscall
+print_str("\n")

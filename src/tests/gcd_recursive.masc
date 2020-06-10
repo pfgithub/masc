@@ -1,0 +1,80 @@
+\.macro print_str (%str)
+\    .data
+\        string: .asciiz %str
+\    .text
+\        li $v0, 4
+\        la $a0, string
+\        syscall
+\.end_macro
+\.data
+\    x:   .word 20, 9, 432, 24, 49, 339, 63
+\    y:   .word 5,  7, 226, 18, 7,  9,   9
+\    z:   .word 0,  0, 0,   0,  0,  0,   0
+\    len: .word 7
+\.text
+\j main
+\
+inline fn print_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+inline fn syscall() void {
+	\syscall
+	!clear $call;
+}
+\
+fn gcd(a: i32, b: i32) i32 {
+    if b == 0 {return a;}
+    return gcd(b, a%b);
+}
+\
+fn equal_count(bArray: [*]i32, cArray: [*]i32, len: i32) i32 {
+    var count: i32 = 0;
+    var index: i32 = 0;
+    loop {
+        if index == len {break;}
+        if bArray[index] == cArray[index] {count = count + 1;}
+		index = index + 1;
+    }
+    return count;
+}
+
+\main:
+var index: i32 = 0;
+loop {
+    if index == @i32:len {break;}
+    
+    var a = @[*]i32:x[index];
+    var b = @[*]i32:y[index];
+    var result = gcd(a, b);
+    save @[*]i32:z[index] = result;
+    
+    \print_str("GCD of (")
+    !clear $call;
+    
+    print_int(a);
+    
+    \print_str(", ")
+    !clear $call;
+    
+    print_int(b);
+    
+    \print_str(") = ")
+    !clear $call;
+    
+    print_int(result);
+    
+    \print_str("\n")
+    !clear $call;
+	
+	index = index + 1;
+}
+
+\print_str("Equal count: ")
+!clear $call;
+
+print_int(equal_count(@[*]i32:y, @[*]i32:z, @i32:len));
+
+\print_str("\n")
+!clear $call;

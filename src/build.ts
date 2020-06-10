@@ -391,7 +391,8 @@ export type AstExpr =
     | (P & { expr: "undefined" })
     | (P & { expr: "arrayindex"; from: AstExpr; index: AstExpr })
     | (P & { expr: "pointer"; from: AstExpr })
-    | (P & { expr: "addressof"; of: AstExpr });
+    | (P & { expr: "addressof"; of: AstExpr })
+    | (P & { expr: "data"; name: string; type: AstType });
 
 export type AstArg = P & { arg: "arg"; name: string; type: AstType };
 
@@ -407,7 +408,7 @@ export type FnAst = P & {
 export type Ast =
     | (P & { ast: "ilasm"; ilasm: string })
     | (P & { ast: "clear"; registers: string[] })
-    | (P & { ast: "defvar"; name: string; type: AstType; default: AstExpr })
+    | (P & { ast: "defvar"; name: string; type?: AstType; default: AstExpr })
     | (P & { ast: "setvar"; name: AstVar; value: AstExpr })
     | (P & {
           ast: "if";
@@ -507,7 +508,7 @@ let mksetvar = (varibl: AstVar, val: AstExpr, pos: Pos): Ast => ({
 });
 let mkdefvar = (
     varibl: string,
-    type: AstType,
+    type: AstType | undefined,
     deflt: AstExpr,
     pos: Pos,
 ): Ast => ({
@@ -676,16 +677,20 @@ l.set(
         _req,
         o.identifier,
         _,
-        ":",
-        _,
-        o.type,
-        _,
+        optional(p(":", _, o.type, _).scb(r => r[2].val)),
         "=",
         _,
         o.expr,
         _,
         ";",
-    ).scb((r, pos) => mkdefvar(r[2].val, r[6].val, r[10].val, pos)),
+    ).scb((r, pos) =>
+        mkdefvar(
+            r[2].val,
+            (r[4].val as any) ? (r[4].val as any).item : undefined,
+            r[7].val,
+            pos,
+        ),
+    ),
 );
 l.set(
     "storelyn",
@@ -709,6 +714,18 @@ l.set(
 l.set(
     "regexpr",
     p("$", o.identifier).scb((r, pos) => mkreg(r[1].val, pos)),
+);
+
+l.set(
+    "dataexpr",
+    p("@", _, o.type, _, ":", _, o.identifier).scb(
+        (r, pos): AstExpr => ({
+            expr: "data",
+            pos,
+            name: r[6].val,
+            type: r[2].val,
+        }),
+    ),
 );
 
 // no conflicts with variable names because types are not values (same way typescript prevents this issue)
@@ -844,7 +861,7 @@ l.set(
 
 l.set(
     "noopexpr",
-    or(o.callexpr, o.vorexpr, o.undefinedexpr, o.immediateexpr).scb(
+    or(o.callexpr, o.vorexpr, o.undefinedexpr, o.immediateexpr, o.dataexpr).scb(
         r => r.data.val,
     ),
 );

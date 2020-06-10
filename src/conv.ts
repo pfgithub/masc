@@ -56,6 +56,7 @@ let regExpansions: { [key: string]: string[] } = {
     call: [
         "v0", "v1", "a0", "a1", "a2", "a3", "t0",
         "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+        "ra",
     ]
 };
 
@@ -143,7 +144,14 @@ function evalExprAnyOut(vnm: VNM, expr: AstExpr, lines?: string[]): ExprRetV {
         return { reg: genreg(expr.register), typ: type };
     } else if (expr.expr === "variable") {
         let va = vnm.get(expr.var);
-        if (!va) throw new Error("variable not found " + expr.var);
+        if (!va)
+            throw new Error(
+                "variable not found " +
+                    expr.var +
+                    " (at: L" +
+                    expr.pos.start.line +
+                    ")",
+            );
         return { reg: va.tempname, typ: va.type };
     } else if (lines) {
         let out = gentemp();
@@ -243,7 +251,8 @@ function evalDerefExpr(
             lines.push(`${instr} ${marked} ${offset || ""}(${from.reg})`);
         } else {
             let index = evalExprAnyOut(vnm, derefExpr.index, lines);
-            if (index.typ.type !== "u32") throw new Error("Index must be u32");
+            if (index.typ.type !== "u32" && index.typ.type !== "i32")
+                throw new Error("Index must be u32 or i32");
             let tmp: string;
             if (size != 1) {
                 tmp = gentemp();
@@ -322,6 +331,15 @@ function evalExpr(
         let ce = vnm.getfn(expr.name);
         if (!ce) throw new Error("unknown fn " + expr.name);
         return ce.call(expr.args, vnm, out, lines);
+    } else if (expr.expr === "data") {
+        let type = evalType(expr.type);
+        if (type.type === "pointer" || type.type === "arrayptr") {
+            lines.push(`la ${out}, ${expr.name}`);
+        } else {
+            lines.push(`lw ${out}, ${expr.name}`);
+            // can be optimized for size to `lw out, label(number)` to avoid an add
+        }
+        return type;
     }
     throw new Error("Not implemented expr: " + expr.expr);
 }
@@ -338,7 +356,8 @@ type FnInfo = {
     call(args: AstExpr[], argvnm: VNM, returnTo: string, res: string[]): Type;
     real?: RealFnInfo;
 };
-type FnReturn = (value: AstExpr, lines: string[]) => void;
+type FnReturnFn = (value: Type, lines: string[]) => void;
+type FnReturn = { outvar: string; fnreturnf: FnReturnFn };
 type VNM = {
     getfn: (key: string) => FnInfo | undefined;
     setfn(key: string, hndlr: FnInfo): void;
@@ -347,7 +366,7 @@ type VNM = {
     getLoop: () => LoopInfo | undefined;
     setLoop(nv: LoopInfo | undefined): void;
     getFnReturn: () => FnReturn | undefined;
-    setFnReturn(nv: FnReturn | undefined): void;
+    setFnReturn(outvar: string, nv: FnReturnFn): void;
 };
 function makeVariableNameMap(parent?: VNM, rtPrntAcss: boolean = true): VNM {
     let rta = rtPrntAcss;
@@ -386,9 +405,9 @@ function makeVariableNameMap(parent?: VNM, rtPrntAcss: boolean = true): VNM {
                 latestFn || (parent && rta ? parent.getFnReturn() : undefined)
             );
         },
-        setFnReturn(nv) {
+        setFnReturn(a, nv) {
             if (latestFn) throw new Error("override latest fn");
-            latestFn = nv;
+            latestFn = { outvar: a, fnreturnf: nv };
         },
     };
 }
@@ -405,9 +424,8 @@ function createInlineFn(fn: FnAst, vnm: VNM) {
 
             let nvnm = makeVariableNameMap(vnm);
             let returnTemp = gentemp(); // this should hopefully get allocated to a valid register and the move instruction should be deleted
-            nvnm.setFnReturn((result, lines) => {
-                let rest = evalExpr(nvnm, result, returnTemp, lines);
-                matchTypes(type, rest);
+            nvnm.setFnReturn(returnTemp, (result, lines) => {
+                matchTypes(type, result);
                 lines.push("j " + returnMark.ref);
             });
             if (args.length !== expctArgs.length)
@@ -461,6 +479,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
         name: arg.name,
     }));
     let startLabel = mklabel("call_" + fn.name);
+    let deinitLabel = mklabel("deinit_" + fn.name);
     vnm.setfn(fn.name, {
         call: (args, argvnm, returnTo, reslines) => {
             if (args.length !== expctArgs.length)
@@ -482,7 +501,8 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
             return returnType;
         },
         real: {
-            startLabel: startLabel,
+            startLabel,
+            deinitLabel,
             body: fn.body,
             name: fn.name,
             args: expctArgs,
@@ -496,6 +516,7 @@ function createNormalFn(fn: FnAst, vnm: VNM) {
 type RealFnInfo = {
     name: string;
     startLabel: LabelDetails;
+    deinitLabel: LabelDetails;
     body: Ast[];
     args: {
         typ: Type;
@@ -509,11 +530,10 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     // have access
     let ivnm = makeVariableNameMap(vnm, false);
 
-    ivnm.setFnReturn((result, lines) => {
-        let rest = evalExpr(ivnm, result, genreg("v0"), lines);
-        matchTypes(rest, fn.returntype);
+    ivnm.setFnReturn(genreg("v0"), (result, lines) => {
+        matchTypes(result, fn.returntype);
         // caller should extract out v0
-        lines.push("jr $ra");
+        lines.push("j " + fn.deinitLabel.ref);
     });
 
     let argsetLines: string[] = [];
@@ -552,7 +572,8 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
         }
     }
 
-    let svars = [...referencedSVariables];
+    let svars = [...referencedSVariables, "ra"];
+    console.log(svars);
 
     // 1: save used s registers to stack
     let bodyLines: string[] = [];
@@ -563,11 +584,15 @@ function insertNormalFnBody(vnm: VNM, rescode: string[], fn: RealFnInfo) {
     svars.forEach((svar, i) => {
         bodyLines.push("sw $" + svar + ", " + i * 4 + "($sp)");
     });
+    if (svars.length > 0) {
+        bodyLines.push("");
+    }
 
     // 2-3: save args, run fn body
     bodyLines.push(...compileAllocated(bodyCodeAllocated));
 
     // 4: reload s variables from stack
+    bodyLines.push(fn.deinitLabel.def + ":");
     if (svars.length > 0) bodyLines.push("");
     if (svars.length > 0)
         bodyLines.push("# reload used s registers from stack");
@@ -645,11 +670,16 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             );
         } else if (line.ast === "defvar") {
             let tempname = gentemp();
-            let defType = evalType(line.type);
             // right now this is only one way, it would also be useful to tell evalExpr about what type we expect (if we expect one)
             let exprResultType = evalExpr(vnm, line.default, tempname, code);
-            matchTypes(defType, exprResultType); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
-            vnm.set(line.name, { type: defType, tempname });
+            let resType: Type;
+            if (line.type) {
+                let defType = evalType(line.type);
+                resType = matchTypes(defType, exprResultType); // in the future, a specified type could be optional by : if no type is specified, set the type to rest
+            } else {
+                resType = exprResultType;
+            }
+            vnm.set(line.name, { type: resType, tempname });
         } else if (line.ast === "setvar") {
             let eao = evalExprAnyOut(vnm, line.name);
             let rt = evalExpr(vnm, line.value, eao.reg, code);
@@ -668,7 +698,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             //    parser though and I've already done that twice and
             //    am working on a third
 
-            let lbl = mklabel("if_end").ref;
+            let lavjkndas = mklabel("if_end");
+            let lbl = lavjkndas.ref;
             let requiresCode = true;
 
             let rescode = mipsgen(line.code, vnm);
@@ -717,7 +748,7 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
             }
             if (requiresCode) {
                 code.push(...rescode.map(l => "    " + l));
-                code.push(lbl + ":");
+                code.push(lavjkndas.def + ":");
             }
         } else if (line.ast === "loop") {
             /// continueLabel = genlabel(loop_continue);
@@ -745,7 +776,10 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): string[] {
         } else if (line.ast === "return") {
             let fnreturn = vnm.getFnReturn();
             if (!fnreturn) throw new Error("return not in fn");
-            fnreturn(line.returnv, code);
+            fnreturn.fnreturnf(
+                evalExpr(vnm, line.returnv, fnreturn.outvar, code),
+                code,
+            );
         } else if (line.ast === "fn") {
             let fni = vnm.getfn(line.name);
             if (!fni)
@@ -918,7 +952,9 @@ function registerAllocate(rawIR: string[]): string[] {
                     variableIsUsedLater,
                 } = solveVariable(letr, i);
                 let reg = userRegisters.find(ussr => !unavailable.has(ussr));
-                if (!reg) throw new Error("Out of registers!");
+                if (!reg) {
+                    reg = "uu";
+                }
                 let tempReplaced = line.replace(
                     /%%:variable:(.+?):%%/g,
                     (_, q) =>
@@ -945,6 +981,19 @@ function registerAllocate(rawIR: string[]): string[] {
                         markDelete[i] = true;
                     }
                 }
+                // if (reg == "uu") {
+                //     console.log(
+                //         "\n\n================\n" +
+                //             registersOnlyIR.join("\n") +
+                //             "\n=============\n\n",
+                //     );
+                //     console.log(
+                //         [...unavailable].sort().join(", ") +
+                //             "\n" +
+                //             userRegisters.sort().join(", "),
+                //     );
+                //     throw new Error("Out of registers!");
+                // }
                 registerNameMap[letr] = reg;
                 return "%%:" + om + "register:" + reg + ":%%";
             }),
