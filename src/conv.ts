@@ -266,7 +266,14 @@ function evalDerefExpr(
                 derefExpr.expr,
         );
 
-    let from = evalExprAnyOut(vnm, derefExpr.from, lines);
+    let from =
+        derefExpr.from.expr === "data"
+            ? {
+                  typ: evalType(derefExpr.from.type),
+                  dataaddr: derefExpr.from.name,
+                  cmnt: "@" + derefExpr.from.name,
+              }
+            : evalExprAnyOut(vnm, derefExpr.from, lines);
     if (derefExpr.expr === "pointer") {
         if (from.typ.type !== "pointer")
             throw new Error(
@@ -314,20 +321,32 @@ function evalDerefExpr(
     };
     if (derefExpr.expr === "pointer") {
         comment.msg = ["&", from.cmnt, ostc];
-        lines.push({
-            text: `${instr} ${marked} (${from.reg})`,
-            comment,
-        });
+        if ("dataaddr" in from)
+            lines.push({
+                text: `${instr} ${marked} ${from.dataaddr}`,
+                comment,
+            });
+        else
+            lines.push({
+                text: `${instr} ${marked} (${from.reg})`,
+                comment,
+            });
     } else {
         let indexImmediate = getImmediate(vnm, derefExpr.index);
         if (indexImmediate) {
             let iim = indexImmediate.value;
             let offset = iim * size;
             comment.msg = [from.cmnt, "[" + indexImmediate.value + "]", ostc];
-            lines.push({
-                text: `${instr} ${marked} ${offset || ""}(${from.reg})`,
-                comment,
-            });
+            if ("dataaddr" in from)
+                lines.push({
+                    text: `${instr} ${marked} ${from.dataaddr}+${offset || ""}`,
+                    comment,
+                });
+            else
+                lines.push({
+                    text: `${instr} ${marked} ${offset || ""}(${from.reg})`,
+                    comment,
+                });
         } else {
             let index = evalExprAnyOut(vnm, derefExpr.index, lines);
             if (index.typ.type !== "u32" && index.typ.type !== "i32")
@@ -346,20 +365,28 @@ function evalDerefExpr(
             } else {
                 tmp = { cmnt: index.cmnt, reg: index.reg };
             }
-            let added = gentemp();
-            let addedComment: OutComment = {
-                out: todo,
-                msg: [tmp.cmnt, " + ", from.cmnt],
-            };
-            lines.push({
-                text: `addu ${markOut(added)}, ${tmp.reg} ${from.reg}`,
-                comment: addedComment,
-            });
-            comment.msg = ["(", addedComment, ").*", ostc];
-            lines.push({
-                text: `${instr} ${marked} (${added})`,
-                comment,
-            });
+            if ("dataaddr" in from) {
+                comment.msg = ["(", tmp.cmnt, " + ", from.cmnt, ").*", ostc];
+                lines.push({
+                    text: `${instr} ${marked} ${from.dataaddr}(${tmp.reg})`,
+                    comment,
+                });
+            } else {
+                let added = gentemp();
+                let addedComment: OutComment = {
+                    out: todo,
+                    msg: [tmp.cmnt, " + ", from.cmnt],
+                };
+                lines.push({
+                    text: `addu ${markOut(added)}, ${tmp.reg} ${from.reg}`,
+                    comment: addedComment,
+                });
+                comment.msg = ["(", addedComment, ").*", ostc];
+                lines.push({
+                    text: `${instr} ${marked} (${added})`,
+                    comment,
+                });
+            }
         }
     }
     return {
