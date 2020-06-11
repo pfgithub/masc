@@ -23,7 +23,7 @@ $a0 = gcd_value;
 !clear $call;
 ```
 
-↓
+<p align="center">↓</p>
 
 ```yml
 .text                                             # .text
