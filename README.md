@@ -93,9 +93,10 @@ statement:
 types:
 
 -   `u32`, `i32`, `u8` - unsigned and signed integer types
--   `[*]type` - pointer to array (indexable, math supported)
--   `*type` - pointer to one (not indexable, no math)
--
+-   `[*]TYPE` - pointer to array (indexable, math supported)
+-   `*TYPE` - pointer to one (not indexable, no math)
+-   `void` - nothing. for use as a return value
+-   `any` - any value (up to 32 bits)
 
 expression:
 
@@ -118,6 +119,11 @@ comments:
 -   `\\` - newline that will be visible in the output code
 
 there's probably more that I'm missing. look at the examples.
+
+## notes
+
+all variables are stored in a register. if you run out of registers, save some
+things to the stack manually yourself.
 
 ## source code structure
 
