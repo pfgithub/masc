@@ -5,7 +5,7 @@ generate mips from human code
 example:
 
 ```zig
-\\.data
+\\.text
 \\j main
 
 fn gcd(a: i32, b: i32) i32 {
@@ -21,6 +21,51 @@ $v0 = 1;
 $a0 = gcd_value;
 \\syscall
 !clear $call;
+```
+
+<p align="center">↓</p>
+
+```yml
+.text                                             # .text
+j main                                            # j main
+# ====================
+# jal call_gcd
+# args:
+#    $a0: a - i32
+#    $a1: b - i32
+# return:
+#    $v0: i32
+# ====================
+call_gcd:                                         # fn gcd(a: i32, b: i32) i32{
+    # save used s registers to stack
+    subiu $sp, $sp, 4                             #     $sp = &$sp[-1]
+    sw $ra, 0($sp)                                #     $sp[0] = $ra
+                                                  #
+    move $t0 $a0                                  #     a = $a0
+    move $t1 $a1                                  #     b = $a1
+    # body
+    bnez $t1, if_end                              #     if b == 0 {
+        move $v0 $t0                              #         .      a
+        j deinit_gcd                              #         return ^;
+    if_end:                                       #     }
+    move $a0 $t1                                  #     .               b
+    rem $a1, $t0 $t1                              #     |                  a % b
+    jal call_gcd                                  #     |           gcd(^, ^^^^^)
+    move $v0, $v0                                 #     return$v0 = ^^^^^^^^^^^^^
+                                                  #
+deinit_gcd:                                       # cleanup:
+    # reload used s registers from stack
+    lw $ra, 0($sp)                                #     $ra = $sp[0]
+    addiu $sp, $sp, 4                             #     $sp = &$sp[1]
+jr $ra                                            # }
+main:                                             # main:
+li $a0 25                                         # .                   25
+li $a1 15                                         # |                       15
+jal call_gcd                                      # |               gcd(^^, ^^)
+move $t0, $v0                                     # var gcd_value = ^^^^^^^^^^^
+li $v0 1                                          # $v0 = 1
+move $a0 $t0                                      # $a0 = gcd_value
+syscall                                           # syscall
 ```
 
 ## syntax
@@ -48,9 +93,10 @@ statement:
 types:
 
 -   `u32`, `i32`, `u8` - unsigned and signed integer types
--   `[*]type` - pointer to array (indexable, math supported)
--   `*type` - pointer to one (not indexable, no math)
--
+-   `[*]TYPE` - pointer to array (indexable, math supported)
+-   `*TYPE` - pointer to one (not indexable, no math)
+-   `void` - nothing. for use as a return value
+-   `any` - any value (up to 32 bits)
 
 expression:
 
@@ -74,10 +120,26 @@ comments:
 
 there's probably more that I'm missing. look at the examples.
 
+## notes
+
+all variables are stored in a register. if you run out of registers, save some
+things to the stack manually yourself.
+
 ## source code structure
 
 don't look at the source code it's very bad because it constantly does string manipulation instead of being resonable and storing useful data.
 
 ## issues
+
+- no parenthesis expression. you can't do `(1 + 1) * 2`
+- newlines have to be explicitly preserved
+- inline function call comments are all on one line
+- no strings, no way to make a print function
+- no way to make a macro fn
+- lots of missing integer types
+- supporting larger types (eg doubles) would require a pretty big refactor probably
+- too many registers has no position associated with the error
+- register allocation bugs probably
+- the source code
 
 lots. glhf if you want to actually use this.
