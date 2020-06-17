@@ -131,4 +131,15 @@ don't look at the source code it's very bad because it constantly does string ma
 
 ## issues
 
+- no parenthesis expression. you can't do `(1 + 1) * 2`
+- newlines have to be explicitly preserved
+- inline function call comments are all on one line
+- no strings, no way to make a print function
+- no way to make a macro fn
+- lots of missing integer types
+- supporting larger types (eg doubles) would require a pretty big refactor probably
+- too many registers has no position associated with the error
+- register allocation bugs probably
+- the source code
+
 lots. glhf if you want to actually use this.
