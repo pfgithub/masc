@@ -1037,6 +1037,8 @@ function mipsgen(ast: Ast[], parentVNM?: VNM): Code {
             if (conditionType.type === "u32") u = "u";
             else if (conditionType.type === "u8") u = "u";
             else if (conditionType.type === "i32") u = "";
+            else if (conditionType.type === "arrayptr") u = "u";
+            else if (conditionType.type === "pointer") u = "u";
             else throw poserr(line.pos, "unsupported if type " + conditionType);
             // this would be much more fun to code in zig
             // I didn't want to because it would require setting up a
