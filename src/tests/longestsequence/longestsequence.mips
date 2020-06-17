@@ -3,9 +3,8 @@
     length: 10
 .text
 j main
+
 # ====================
-
-
 # jal longest_increasing_sequence
 # args:
 #    $a0: array - [*]i32
@@ -14,7 +13,6 @@ j main
 #    $v0: i32
 # ====================
 longest_increasing_sequence:
-    # body
     li $t0 1                                      #     var current: i32 = 1
     move $t1 $zero                                #     var longest: i32 = 0
     mulo $t2, $a1 4                               #     .                    length * 4
