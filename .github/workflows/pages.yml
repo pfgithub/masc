@@ -17,6 +17,7 @@ jobs:
           yarn install
           yarn ts-node src/test.ts
           cd web
+          yarn install
           yarn build
 
       - name: Deploy 🚀
