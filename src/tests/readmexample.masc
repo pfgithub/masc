@@ -8,9 +8,16 @@ fn gcd(a: i32, b: i32) i32 {
 
 \\main:
 
-var gcd_value = gcd(25, 15);
+print_int(gcd(25, 15));
 
-$v0 = 1;
-$a0 = gcd_value;
-\\syscall
-!clear $call;
+// ----- //
+
+inline fn print_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+inline fn syscall() void {
+	\\syscall
+	!clear $call;
+}

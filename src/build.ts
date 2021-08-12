@@ -1,4 +1,4 @@
-import * as fs from "fs";
+// import * as fs from "fs";
 
 type CodeRef = { str: string };
 
@@ -930,8 +930,9 @@ l.set(
 
 // l.set("implicitCtxExpression") // idk
 
-console.log(l.print());
-export function parse(code: string, filename: string) {
+export const parser_spec = l.print();
+console.log(parser_spec);
+export function parse(code: string, filename: string): Ast[] {
     deepest = { index: -1, line: 0, col: 0 };
 
     let res = o.code.parse({ str: code }, { index: 0, col: 0, line: 0 });
@@ -940,21 +941,22 @@ export function parse(code: string, filename: string) {
 
     let resretv = (res as any).val || res;
 
-    fs.writeFileSync(
-        __dirname + "/code.json",
-        JSON.stringify((res as any).val || res, null, " "),
-        "utf-8",
-    );
+    // fs.writeFileSync(
+    //     __dirname + "/code.json",
+    //     JSON.stringify((res as any).val || res, null, " "),
+    //     "utf-8",
+    // );
 
     if (deepest.index !== code.length) {
         console.log(deepest);
+        const stdout_cols = typeof process !== "undefined" ? process.stdout.columns : 80;
         let tensp = " ".repeat(10);
         let lnum = deepest.line + 1;
         let cnum = deepest.col + 1;
         let pfxsp = "      " + " ".repeat(lnum.toString().length);
-        let fwidth = (process.stdout.columns || 80) - pfxsp.length - 1;
+        let fwidth = stdout_cols - pfxsp.length - 1;
         let qwidth = fwidth - 10;
-        let region = (tensp + code + " ".repeat(process.stdout.columns))
+        let region = (tensp + code + " ".repeat(stdout_cols))
             .substr(deepest.index, fwidth)
             .split("\n")
             .join("⏎");
@@ -994,7 +996,7 @@ export function parse(code: string, filename: string) {
                 "~".repeat(qwidth) +
                 colors.clear,
         );
-        process.exit(1);
+        throw new Error(lnum+":"+cnum+" - Parse Error.");
     }
     console.log();
 

@@ -31,10 +31,10 @@ deinit_gcd:                                       # cleanup:
     addiu $sp, $sp, 4                             #     $sp = &$sp[1]
 jr $ra                                            # }
 main:                                             # main:
-li $a0 25                                         # .                   25
-li $a1 15                                         # |                       15
-jal call_gcd                                      # |               gcd(^^, ^^)
-move $t0, $v0                                     # var gcd_value = ^^^^^^^^^^^
-li $v0 1                                          # $v0 = 1
-move $a0 $t0                                      # $a0 = gcd_value
-syscall                                           # syscall
+li $a0 25                                         # .             25
+li $a1 15                                         # |                 15
+jal call_gcd                                      # |         gcd(^^, ^^)
+move $t0, $v0                                     # |         ^^^^^^^^^^^
+li $v0 1                                          # print_int(^^^^^^^^^^^)
+move $a0 $t0                                      #
+syscall                                           #

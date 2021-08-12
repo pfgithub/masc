@@ -1,3 +1,5 @@
+web demo: https://pfg.pw/masc
+
 # mips masc
 
 generate mips from human code
@@ -15,12 +17,19 @@ fn gcd(a: i32, b: i32) i32 {
 
 \\main:
 
-var gcd_value = gcd(25, 15);
+print_int(gcd(25, 15));
 
-$v0 = 1;
-$a0 = gcd_value;
-\\syscall
-!clear $call;
+// ----- //
+
+inline fn print_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+inline fn syscall() void {
+	\\syscall
+	!clear $call;
+}
 ```
 
 <p align="center">↓</p>
@@ -59,13 +68,13 @@ deinit_gcd:                                       # cleanup:
     addiu $sp, $sp, 4                             #     $sp = &$sp[1]
 jr $ra                                            # }
 main:                                             # main:
-li $a0 25                                         # .                   25
-li $a1 15                                         # |                       15
-jal call_gcd                                      # |               gcd(^^, ^^)
-move $t0, $v0                                     # var gcd_value = ^^^^^^^^^^^
-li $v0 1                                          # $v0 = 1
-move $a0 $t0                                      # $a0 = gcd_value
-syscall                                           # syscall
+li $a0 25                                         # .             25
+li $a1 15                                         # |                 15
+jal call_gcd                                      # |         gcd(^^, ^^)
+move $t0, $v0                                     # |         ^^^^^^^^^^^
+li $v0 1                                          # print_int(^^^^^^^^^^^)
+move $a0 $t0                                      #
+syscall                                           #
 ```
 
 ## syntax
@@ -78,8 +87,7 @@ statement:
 
 -   `var varname: TYPE = EXPRESSION;` - define variable
 -   `variable | register = EXPRESSION;` - set variable. eg `myvar = 3;` or `$v0 = 5;`
--   `save EXPRESSION = EXPRESSION` - save into memory. eg `save myptr.* = 25;`. you may wonder why this is not just `myptr.* = 25;` and the answer to that is there is no
-    good reason and that way would be better but isn't supported because only variable | register is supported and I wasn't thinking enough when implementing this.
+-   `save EXPRESSION = EXPRESSION` - save into memory. eg `save myptr.* = 25;`. you may wonder why this is not just `myptr.* = 25;`. it should be.
 -   `inline? fn function_name(arg_name: TYPE, ...) { STATEMENT... }` - define ¿inline? function. make sure to jump over functions.
     functions will save any needed things to the stack (and unneeded because they will always save \$ra even if they don't call any functions oops)
 -   `loop { STATEMENT ... }` - loop forever. break/continue out of the loop.
@@ -125,10 +133,6 @@ there's probably more that I'm missing. look at the examples.
 all variables are stored in a register. if you run out of registers, save some
 things to the stack manually yourself.
 
-## source code structure
-
-don't look at the source code it's very bad because it constantly does string manipulation instead of being resonable and storing useful data.
-
 ## issues
 
 - no parenthesis expression. you can't do `(1 + 1) * 2`
@@ -140,6 +144,4 @@ don't look at the source code it's very bad because it constantly does string ma
 - supporting larger types (eg doubles) would require a pretty big refactor probably
 - too many registers has no position associated with the error
 - register allocation bugs probably
-- the source code
-
-lots. glhf if you want to actually use this.
+- intermediate representation is using untyped strings and regex replace rather than actual objects

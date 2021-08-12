@@ -42,14 +42,17 @@ let nocmnt = (): BlockComment => ({ msg: [] });
 // text: string
 // comment: {out: string, value: string} | string
 
-export function compile(srcraw: string, filename: string): string {
+export {parser_spec} from "./build";
+export type CompileRes = {final: string, intermediate: Code, ast: Ast[]};
+export function compile(srcraw: string, filename: string): CompileRes {
     let src = srcraw.split("\t").join("    ");
-    const baseast = parse(src, filename) as Ast[];
+    const baseast = parse(src, filename);
     let mair = mipsgen(baseast);
     // console.log("\n\n" + mair.join("\n") + "\n\n");
     let res = finalize(mair);
     usedLoopNames = {};
-    return res;
+    gtid = 0;
+    return {final: res, intermediate: mair, ast: baseast};
 }
 
 let asun = (v: never): never => {

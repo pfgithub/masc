@@ -1,3 +1,9 @@
+\.data
+\    array: .word -5, 10, 20, 14, 17, 26, 42, 22, 19, -5
+\    length: 10
+\.text
+\j main
+\
 fn longest_increasing_sequence(array: [*]i32, length: i32) i32 {
     var current: i32 = 1;
     var longest: i32 = 0;
@@ -12,4 +18,21 @@ fn longest_increasing_sequence(array: [*]i32, length: i32) i32 {
         if current > longest {longest = current;}
         array = &array[1];
     }
+}
+\
+\main:
+var array: [*]i32 = @[*]i32:array;
+var len: i32 = @i32:length;
+print_int(longest_increasing_sequence(array, len));
+
+// ----- //
+
+inline fn print_int(value: i32) void {
+	$v0 = 1;
+	$a0 = value;
+	syscall();
+}
+inline fn syscall() void {
+	\syscall
+	!clear $call;
 }

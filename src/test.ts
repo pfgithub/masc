@@ -19,7 +19,7 @@ for (let testfylname of tests) {
     } catch {}
 
     let inputCode = fs.readFileSync(testfyl, "utf-8");
-    let mipsRes = compile(inputCode, testfyl);
+    let mipsRes = compile(inputCode, testfyl).final;
 
     let expctResFile = path.join(testdir, testnme + ".mips");
     let expectedOutput: string;

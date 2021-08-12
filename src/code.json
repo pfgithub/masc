@@ -1,0 +1,2894 @@
+[
+ {
+  "ast": "ilasm",
+  "ilasm": ".macro print_str (%str)",
+  "pos": {
+   "start": {
+    "index": 0,
+    "col": 0,
+    "line": 0
+   },
+   "end": {
+    "index": 25,
+    "col": 0,
+    "line": 1
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "    .data",
+  "pos": {
+   "start": {
+    "index": 25,
+    "col": 0,
+    "line": 1
+   },
+   "end": {
+    "index": 36,
+    "col": 0,
+    "line": 2
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "        string: .asciiz %str",
+  "pos": {
+   "start": {
+    "index": 36,
+    "col": 0,
+    "line": 2
+   },
+   "end": {
+    "index": 66,
+    "col": 0,
+    "line": 3
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "    .text",
+  "pos": {
+   "start": {
+    "index": 66,
+    "col": 0,
+    "line": 3
+   },
+   "end": {
+    "index": 77,
+    "col": 0,
+    "line": 4
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "        li $v0, 4",
+  "pos": {
+   "start": {
+    "index": 77,
+    "col": 0,
+    "line": 4
+   },
+   "end": {
+    "index": 96,
+    "col": 0,
+    "line": 5
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "        la $a0, string",
+  "pos": {
+   "start": {
+    "index": 96,
+    "col": 0,
+    "line": 5
+   },
+   "end": {
+    "index": 120,
+    "col": 0,
+    "line": 6
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "        syscall",
+  "pos": {
+   "start": {
+    "index": 120,
+    "col": 0,
+    "line": 6
+   },
+   "end": {
+    "index": 137,
+    "col": 0,
+    "line": 7
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": ".end_macro",
+  "pos": {
+   "start": {
+    "index": 137,
+    "col": 0,
+    "line": 7
+   },
+   "end": {
+    "index": 149,
+    "col": 0,
+    "line": 8
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": ".text",
+  "pos": {
+   "start": {
+    "index": 149,
+    "col": 0,
+    "line": 8
+   },
+   "end": {
+    "index": 156,
+    "col": 0,
+    "line": 9
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "j main",
+  "pos": {
+   "start": {
+    "index": 156,
+    "col": 0,
+    "line": 9
+   },
+   "end": {
+    "index": 164,
+    "col": 0,
+    "line": 10
+   }
+  }
+ },
+ {
+  "ast": "fn",
+  "name": "syscall",
+  "inline": true,
+  "args": [],
+  "body": [
+   {
+    "ast": "ilasm",
+    "ilasm": "syscall",
+    "pos": {
+     "start": {
+      "index": 196,
+      "col": 4,
+      "line": 12
+     },
+     "end": {
+      "index": 205,
+      "col": 0,
+      "line": 13
+     }
+    }
+   },
+   {
+    "ast": "clear",
+    "registers": [
+     "call"
+    ],
+    "pos": {
+     "start": {
+      "index": 209,
+      "col": 4,
+      "line": 13
+     },
+     "end": {
+      "index": 222,
+      "col": 17,
+      "line": 13
+     }
+    }
+   }
+  ],
+  "type": {
+   "type": "builtin",
+   "kind": "void",
+   "pos": {
+    "start": {
+     "index": 185,
+     "col": 20,
+     "line": 11
+    },
+    "end": {
+     "index": 189,
+     "col": 24,
+     "line": 11
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 165,
+    "col": 0,
+    "line": 11
+   },
+   "end": {
+    "index": 224,
+    "col": 1,
+    "line": 14
+   }
+  }
+ },
+ {
+  "ast": "fn",
+  "name": "read_string",
+  "inline": true,
+  "args": [
+   {
+    "arg": "arg",
+    "name": "buffer",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 259,
+        "col": 33,
+        "line": 16
+       },
+       "end": {
+        "index": 261,
+        "col": 35,
+        "line": 16
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 256,
+       "col": 30,
+       "line": 16
+      },
+      "end": {
+       "index": 261,
+       "col": 35,
+       "line": 16
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 248,
+      "col": 22,
+      "line": 16
+     },
+     "end": {
+      "index": 261,
+      "col": 35,
+      "line": 16
+     }
+    }
+   },
+   {
+    "arg": "arg",
+    "name": "max_len",
+    "type": {
+     "type": "builtin",
+     "kind": "u32",
+     "pos": {
+      "start": {
+       "index": 272,
+       "col": 46,
+       "line": 16
+      },
+      "end": {
+       "index": 275,
+       "col": 49,
+       "line": 16
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 263,
+      "col": 37,
+      "line": 16
+     },
+     "end": {
+      "index": 275,
+      "col": 49,
+      "line": 16
+     }
+    }
+   }
+  ],
+  "body": [
+   {
+    "ast": "setvar",
+    "name": {
+     "expr": "register",
+     "register": "v0",
+     "pos": {
+      "start": {
+       "index": 288,
+       "col": 4,
+       "line": 17
+      },
+      "end": {
+       "index": 291,
+       "col": 7,
+       "line": 17
+      }
+     }
+    },
+    "value": {
+     "expr": "immediate",
+     "value": "8",
+     "pos": {
+      "start": {
+       "index": 294,
+       "col": 10,
+       "line": 17
+      },
+      "end": {
+       "index": 295,
+       "col": 11,
+       "line": 17
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 288,
+      "col": 4,
+      "line": 17
+     },
+     "end": {
+      "index": 296,
+      "col": 12,
+      "line": 17
+     }
+    }
+   },
+   {
+    "ast": "setvar",
+    "name": {
+     "expr": "register",
+     "register": "a0",
+     "pos": {
+      "start": {
+       "index": 301,
+       "col": 4,
+       "line": 18
+      },
+      "end": {
+       "index": 304,
+       "col": 7,
+       "line": 18
+      }
+     }
+    },
+    "value": {
+     "expr": "variable",
+     "var": "buffer",
+     "pos": {
+      "start": {
+       "index": 307,
+       "col": 10,
+       "line": 18
+      },
+      "end": {
+       "index": 313,
+       "col": 16,
+       "line": 18
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 301,
+      "col": 4,
+      "line": 18
+     },
+     "end": {
+      "index": 314,
+      "col": 17,
+      "line": 18
+     }
+    }
+   },
+   {
+    "ast": "setvar",
+    "name": {
+     "expr": "register",
+     "register": "a1",
+     "pos": {
+      "start": {
+       "index": 319,
+       "col": 4,
+       "line": 19
+      },
+      "end": {
+       "index": 322,
+       "col": 7,
+       "line": 19
+      }
+     }
+    },
+    "value": {
+     "expr": "variable",
+     "var": "max_len",
+     "pos": {
+      "start": {
+       "index": 325,
+       "col": 10,
+       "line": 19
+      },
+      "end": {
+       "index": 332,
+       "col": 17,
+       "line": 19
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 319,
+      "col": 4,
+      "line": 19
+     },
+     "end": {
+      "index": 333,
+      "col": 18,
+      "line": 19
+     }
+    }
+   },
+   {
+    "ast": "expr",
+    "expr": {
+     "expr": "call",
+     "name": "syscall",
+     "args": [],
+     "pos": {
+      "start": {
+       "index": 338,
+       "col": 4,
+       "line": 20
+      },
+      "end": {
+       "index": 347,
+       "col": 13,
+       "line": 20
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 338,
+      "col": 4,
+      "line": 20
+     },
+     "end": {
+      "index": 348,
+      "col": 14,
+      "line": 20
+     }
+    }
+   }
+  ],
+  "type": {
+   "type": "builtin",
+   "kind": "void",
+   "pos": {
+    "start": {
+     "index": 277,
+     "col": 51,
+     "line": 16
+    },
+    "end": {
+     "index": 281,
+     "col": 55,
+     "line": 16
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 226,
+    "col": 0,
+    "line": 16
+   },
+   "end": {
+    "index": 350,
+    "col": 1,
+    "line": 21
+   }
+  }
+ },
+ {
+  "ast": "fn",
+  "name": "print_string",
+  "inline": true,
+  "args": [
+   {
+    "arg": "arg",
+    "name": "string",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 386,
+        "col": 34,
+        "line": 23
+       },
+       "end": {
+        "index": 388,
+        "col": 36,
+        "line": 23
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 383,
+       "col": 31,
+       "line": 23
+      },
+      "end": {
+       "index": 388,
+       "col": 36,
+       "line": 23
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 375,
+      "col": 23,
+      "line": 23
+     },
+     "end": {
+      "index": 388,
+      "col": 36,
+      "line": 23
+     }
+    }
+   }
+  ],
+  "body": [
+   {
+    "ast": "setvar",
+    "name": {
+     "expr": "register",
+     "register": "v0",
+     "pos": {
+      "start": {
+       "index": 401,
+       "col": 4,
+       "line": 24
+      },
+      "end": {
+       "index": 404,
+       "col": 7,
+       "line": 24
+      }
+     }
+    },
+    "value": {
+     "expr": "immediate",
+     "value": "4",
+     "pos": {
+      "start": {
+       "index": 407,
+       "col": 10,
+       "line": 24
+      },
+      "end": {
+       "index": 408,
+       "col": 11,
+       "line": 24
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 401,
+      "col": 4,
+      "line": 24
+     },
+     "end": {
+      "index": 409,
+      "col": 12,
+      "line": 24
+     }
+    }
+   },
+   {
+    "ast": "setvar",
+    "name": {
+     "expr": "register",
+     "register": "a0",
+     "pos": {
+      "start": {
+       "index": 414,
+       "col": 4,
+       "line": 25
+      },
+      "end": {
+       "index": 417,
+       "col": 7,
+       "line": 25
+      }
+     }
+    },
+    "value": {
+     "expr": "variable",
+     "var": "string",
+     "pos": {
+      "start": {
+       "index": 420,
+       "col": 10,
+       "line": 25
+      },
+      "end": {
+       "index": 426,
+       "col": 16,
+       "line": 25
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 414,
+      "col": 4,
+      "line": 25
+     },
+     "end": {
+      "index": 427,
+      "col": 17,
+      "line": 25
+     }
+    }
+   },
+   {
+    "ast": "expr",
+    "expr": {
+     "expr": "call",
+     "name": "syscall",
+     "args": [],
+     "pos": {
+      "start": {
+       "index": 432,
+       "col": 4,
+       "line": 26
+      },
+      "end": {
+       "index": 441,
+       "col": 13,
+       "line": 26
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 432,
+      "col": 4,
+      "line": 26
+     },
+     "end": {
+      "index": 442,
+      "col": 14,
+      "line": 26
+     }
+    }
+   }
+  ],
+  "type": {
+   "type": "builtin",
+   "kind": "void",
+   "pos": {
+    "start": {
+     "index": 390,
+     "col": 38,
+     "line": 23
+    },
+    "end": {
+     "index": 394,
+     "col": 42,
+     "line": 23
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 352,
+    "col": 0,
+    "line": 23
+   },
+   "end": {
+    "index": 444,
+    "col": 1,
+    "line": 27
+   }
+  }
+ },
+ {
+  "ast": "fn",
+  "name": "read_until_newline",
+  "inline": false,
+  "args": [
+   {
+    "arg": "arg",
+    "name": "buffer",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 479,
+        "col": 33,
+        "line": 29
+       },
+       "end": {
+        "index": 481,
+        "col": 35,
+        "line": 29
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 476,
+       "col": 30,
+       "line": 29
+      },
+      "end": {
+       "index": 481,
+       "col": 35,
+       "line": 29
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 468,
+      "col": 22,
+      "line": 29
+     },
+     "end": {
+      "index": 481,
+      "col": 35,
+      "line": 29
+     }
+    }
+   },
+   {
+    "arg": "arg",
+    "name": "max_len",
+    "type": {
+     "type": "builtin",
+     "kind": "u32",
+     "pos": {
+      "start": {
+       "index": 492,
+       "col": 46,
+       "line": 29
+      },
+      "end": {
+       "index": 495,
+       "col": 49,
+       "line": 29
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 483,
+      "col": 37,
+      "line": 29
+     },
+     "end": {
+      "index": 495,
+      "col": 49,
+      "line": 29
+     }
+    }
+   }
+  ],
+  "body": [
+   {
+    "ast": "expr",
+    "expr": {
+     "expr": "call",
+     "name": "read_string",
+     "args": [
+      {
+       "expr": "variable",
+       "var": "buffer",
+       "pos": {
+        "start": {
+         "index": 520,
+         "col": 16,
+         "line": 30
+        },
+        "end": {
+         "index": 526,
+         "col": 22,
+         "line": 30
+        }
+       }
+      },
+      {
+       "expr": "variable",
+       "var": "max_len",
+       "pos": {
+        "start": {
+         "index": 528,
+         "col": 24,
+         "line": 30
+        },
+        "end": {
+         "index": 535,
+         "col": 31,
+         "line": 30
+        }
+       }
+      }
+     ],
+     "pos": {
+      "start": {
+       "index": 508,
+       "col": 4,
+       "line": 30
+      },
+      "end": {
+       "index": 536,
+       "col": 32,
+       "line": 30
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 508,
+      "col": 4,
+      "line": 30
+     },
+     "end": {
+      "index": 537,
+      "col": 33,
+      "line": 30
+     }
+    }
+   },
+   {
+    "ast": "defvar",
+    "name": "addr",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 555,
+        "col": 17,
+        "line": 31
+       },
+       "end": {
+        "index": 557,
+        "col": 19,
+        "line": 31
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 552,
+       "col": 14,
+       "line": 31
+      },
+      "end": {
+       "index": 557,
+       "col": 19,
+       "line": 31
+      }
+     }
+    },
+    "default": {
+     "expr": "variable",
+     "var": "buffer",
+     "pos": {
+      "start": {
+       "index": 560,
+       "col": 22,
+       "line": 31
+      },
+      "end": {
+       "index": 566,
+       "col": 28,
+       "line": 31
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 542,
+      "col": 4,
+      "line": 31
+     },
+     "end": {
+      "index": 567,
+      "col": 29,
+      "line": 31
+     }
+    }
+   },
+   {
+    "ast": "loop",
+    "code": [
+     {
+      "ast": "if",
+      "condleft": {
+       "expr": "arrayindex",
+       "from": {
+        "expr": "variable",
+        "var": "addr",
+        "pos": {
+         "start": {
+          "index": 590,
+          "col": 11,
+          "line": 33
+         },
+         "end": {
+          "index": 594,
+          "col": 15,
+          "line": 33
+         }
+        }
+       },
+       "index": {
+        "expr": "immediate",
+        "value": "0",
+        "pos": {
+         "start": {
+          "index": 595,
+          "col": 16,
+          "line": 33
+         },
+         "end": {
+          "index": 596,
+          "col": 17,
+          "line": 33
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 594,
+         "col": 15,
+         "line": 33
+        },
+        "end": {
+         "index": 598,
+         "col": 19,
+         "line": 33
+        }
+       }
+      },
+      "condition": "==",
+      "condright": {
+       "expr": "immediate",
+       "value": "13",
+       "pos": {
+        "start": {
+         "index": 601,
+         "col": 22,
+         "line": 33
+        },
+        "end": {
+         "index": 603,
+         "col": 24,
+         "line": 33
+        }
+       }
+      },
+      "code": [
+       {
+        "ast": "break",
+        "pos": {
+         "start": {
+          "index": 605,
+          "col": 26,
+          "line": 33
+         },
+         "end": {
+          "index": 611,
+          "col": 32,
+          "line": 33
+         }
+        }
+       }
+      ],
+      "pos": {
+       "start": {
+        "index": 587,
+        "col": 8,
+        "line": 33
+       },
+       "end": {
+        "index": 612,
+        "col": 33,
+        "line": 33
+       }
+      }
+     },
+     {
+      "ast": "if",
+      "condleft": {
+       "expr": "arrayindex",
+       "from": {
+        "expr": "variable",
+        "var": "addr",
+        "pos": {
+         "start": {
+          "index": 624,
+          "col": 11,
+          "line": 34
+         },
+         "end": {
+          "index": 628,
+          "col": 15,
+          "line": 34
+         }
+        }
+       },
+       "index": {
+        "expr": "immediate",
+        "value": "0",
+        "pos": {
+         "start": {
+          "index": 629,
+          "col": 16,
+          "line": 34
+         },
+         "end": {
+          "index": 630,
+          "col": 17,
+          "line": 34
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 628,
+         "col": 15,
+         "line": 34
+        },
+        "end": {
+         "index": 632,
+         "col": 19,
+         "line": 34
+        }
+       }
+      },
+      "condition": "==",
+      "condright": {
+       "expr": "immediate",
+       "value": "10",
+       "pos": {
+        "start": {
+         "index": 635,
+         "col": 22,
+         "line": 34
+        },
+        "end": {
+         "index": 637,
+         "col": 24,
+         "line": 34
+        }
+       }
+      },
+      "code": [
+       {
+        "ast": "break",
+        "pos": {
+         "start": {
+          "index": 639,
+          "col": 26,
+          "line": 34
+         },
+         "end": {
+          "index": 645,
+          "col": 32,
+          "line": 34
+         }
+        }
+       }
+      ],
+      "pos": {
+       "start": {
+        "index": 621,
+        "col": 8,
+        "line": 34
+       },
+       "end": {
+        "index": 646,
+        "col": 33,
+        "line": 34
+       }
+      }
+     },
+     {
+      "ast": "setvar",
+      "name": {
+       "expr": "variable",
+       "var": "addr",
+       "pos": {
+        "start": {
+         "index": 655,
+         "col": 8,
+         "line": 35
+        },
+        "end": {
+         "index": 659,
+         "col": 12,
+         "line": 35
+        }
+       }
+      },
+      "value": {
+       "expr": "addressof",
+       "of": {
+        "expr": "arrayindex",
+        "from": {
+         "expr": "variable",
+         "var": "addr",
+         "pos": {
+          "start": {
+           "index": 663,
+           "col": 16,
+           "line": 35
+          },
+          "end": {
+           "index": 667,
+           "col": 20,
+           "line": 35
+          }
+         }
+        },
+        "index": {
+         "expr": "immediate",
+         "value": "1",
+         "pos": {
+          "start": {
+           "index": 668,
+           "col": 21,
+           "line": 35
+          },
+          "end": {
+           "index": 669,
+           "col": 22,
+           "line": 35
+          }
+         }
+        },
+        "pos": {
+         "start": {
+          "index": 667,
+          "col": 20,
+          "line": 35
+         },
+         "end": {
+          "index": 670,
+          "col": 23,
+          "line": 35
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 662,
+         "col": 15,
+         "line": 35
+        },
+        "end": {
+         "index": 670,
+         "col": 23,
+         "line": 35
+        }
+       }
+      },
+      "pos": {
+       "start": {
+        "index": 655,
+        "col": 8,
+        "line": 35
+       },
+       "end": {
+        "index": 671,
+        "col": 24,
+        "line": 35
+       }
+      }
+     }
+    ],
+    "pos": {
+     "start": {
+      "index": 572,
+      "col": 4,
+      "line": 32
+     },
+     "end": {
+      "index": 677,
+      "col": 5,
+      "line": 36
+     }
+    }
+   },
+   {
+    "ast": "save",
+    "saveloc": {
+     "expr": "arrayindex",
+     "from": {
+      "expr": "variable",
+      "var": "addr",
+      "pos": {
+       "start": {
+        "index": 687,
+        "col": 9,
+        "line": 37
+       },
+       "end": {
+        "index": 691,
+        "col": 13,
+        "line": 37
+       }
+      }
+     },
+     "index": {
+      "expr": "immediate",
+      "value": "0",
+      "pos": {
+       "start": {
+        "index": 692,
+        "col": 14,
+        "line": 37
+       },
+       "end": {
+        "index": 693,
+        "col": 15,
+        "line": 37
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 691,
+       "col": 13,
+       "line": 37
+      },
+      "end": {
+       "index": 695,
+       "col": 17,
+       "line": 37
+      }
+     }
+    },
+    "value": {
+     "expr": "immediate",
+     "value": "0",
+     "pos": {
+      "start": {
+       "index": 697,
+       "col": 19,
+       "line": 37
+      },
+      "end": {
+       "index": 698,
+       "col": 20,
+       "line": 37
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 682,
+      "col": 4,
+      "line": 37
+     },
+     "end": {
+      "index": 699,
+      "col": 21,
+      "line": 37
+     }
+    }
+   }
+  ],
+  "type": {
+   "type": "builtin",
+   "kind": "void",
+   "pos": {
+    "start": {
+     "index": 497,
+     "col": 51,
+     "line": 29
+    },
+    "end": {
+     "index": 501,
+     "col": 55,
+     "line": 29
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 446,
+    "col": 0,
+    "line": 29
+   },
+   "end": {
+    "index": 701,
+    "col": 1,
+    "line": 38
+   }
+  }
+ },
+ {
+  "ast": "fn",
+  "name": "translate",
+  "inline": false,
+  "args": [
+   {
+    "arg": "arg",
+    "name": "message",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 728,
+        "col": 25,
+        "line": 40
+       },
+       "end": {
+        "index": 730,
+        "col": 27,
+        "line": 40
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 725,
+       "col": 22,
+       "line": 40
+      },
+      "end": {
+       "index": 730,
+       "col": 27,
+       "line": 40
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 716,
+      "col": 13,
+      "line": 40
+     },
+     "end": {
+      "index": 730,
+      "col": 27,
+      "line": 40
+     }
+    }
+   },
+   {
+    "arg": "arg",
+    "name": "key",
+    "type": {
+     "type": "arrayptr",
+     "child": {
+      "type": "builtin",
+      "kind": "u8",
+      "pos": {
+       "start": {
+        "index": 740,
+        "col": 37,
+        "line": 40
+       },
+       "end": {
+        "index": 742,
+        "col": 39,
+        "line": 40
+       }
+      }
+     },
+     "pos": {
+      "start": {
+       "index": 737,
+       "col": 34,
+       "line": 40
+      },
+      "end": {
+       "index": 742,
+       "col": 39,
+       "line": 40
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 732,
+      "col": 29,
+      "line": 40
+     },
+     "end": {
+      "index": 742,
+      "col": 39,
+      "line": 40
+     }
+    }
+   }
+  ],
+  "body": [
+   {
+    "ast": "ilasm",
+    "ilasm": "# get length of key",
+    "pos": {
+     "start": {
+      "index": 755,
+      "col": 4,
+      "line": 41
+     },
+     "end": {
+      "index": 776,
+      "col": 0,
+      "line": 42
+     }
+    }
+   },
+   {
+    "ast": "defvar",
+    "name": "key_len",
+    "type": {
+     "type": "builtin",
+     "kind": "u32",
+     "pos": {
+      "start": {
+       "index": 793,
+       "col": 17,
+       "line": 42
+      },
+      "end": {
+       "index": 796,
+       "col": 20,
+       "line": 42
+      }
+     }
+    },
+    "default": {
+     "expr": "immediate",
+     "value": "0",
+     "pos": {
+      "start": {
+       "index": 799,
+       "col": 23,
+       "line": 42
+      },
+      "end": {
+       "index": 800,
+       "col": 24,
+       "line": 42
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 780,
+      "col": 4,
+      "line": 42
+     },
+     "end": {
+      "index": 801,
+      "col": 25,
+      "line": 42
+     }
+    }
+   },
+   {
+    "ast": "loop",
+    "code": [
+     {
+      "ast": "if",
+      "condleft": {
+       "expr": "arrayindex",
+       "from": {
+        "expr": "variable",
+        "var": "key",
+        "pos": {
+         "start": {
+          "index": 824,
+          "col": 11,
+          "line": 44
+         },
+         "end": {
+          "index": 827,
+          "col": 14,
+          "line": 44
+         }
+        }
+       },
+       "index": {
+        "expr": "variable",
+        "var": "key_len",
+        "pos": {
+         "start": {
+          "index": 828,
+          "col": 15,
+          "line": 44
+         },
+         "end": {
+          "index": 835,
+          "col": 22,
+          "line": 44
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 827,
+         "col": 14,
+         "line": 44
+        },
+        "end": {
+         "index": 837,
+         "col": 24,
+         "line": 44
+        }
+       }
+      },
+      "condition": "==",
+      "condright": {
+       "expr": "immediate",
+       "value": "0",
+       "pos": {
+        "start": {
+         "index": 840,
+         "col": 27,
+         "line": 44
+        },
+        "end": {
+         "index": 841,
+         "col": 28,
+         "line": 44
+        }
+       }
+      },
+      "code": [
+       {
+        "ast": "break",
+        "pos": {
+         "start": {
+          "index": 843,
+          "col": 30,
+          "line": 44
+         },
+         "end": {
+          "index": 849,
+          "col": 36,
+          "line": 44
+         }
+        }
+       }
+      ],
+      "pos": {
+       "start": {
+        "index": 821,
+        "col": 8,
+        "line": 44
+       },
+       "end": {
+        "index": 850,
+        "col": 37,
+        "line": 44
+       }
+      }
+     },
+     {
+      "ast": "setvar",
+      "name": {
+       "expr": "variable",
+       "var": "key_len",
+       "pos": {
+        "start": {
+         "index": 859,
+         "col": 8,
+         "line": 45
+        },
+        "end": {
+         "index": 866,
+         "col": 15,
+         "line": 45
+        }
+       }
+      },
+      "value": {
+       "expr": "op",
+       "op": "+",
+       "left": {
+        "expr": "variable",
+        "var": "key_len",
+        "pos": {
+         "start": {
+          "index": 869,
+          "col": 18,
+          "line": 45
+         },
+         "end": {
+          "index": 876,
+          "col": 25,
+          "line": 45
+         }
+        }
+       },
+       "right": {
+        "expr": "immediate",
+        "value": "1",
+        "pos": {
+         "start": {
+          "index": 879,
+          "col": 28,
+          "line": 45
+         },
+         "end": {
+          "index": 880,
+          "col": 29,
+          "line": 45
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 869,
+         "col": 18,
+         "line": 45
+        },
+        "end": {
+         "index": 880,
+         "col": 29,
+         "line": 45
+        }
+       }
+      },
+      "pos": {
+       "start": {
+        "index": 859,
+        "col": 8,
+        "line": 45
+       },
+       "end": {
+        "index": 881,
+        "col": 30,
+        "line": 45
+       }
+      }
+     }
+    ],
+    "pos": {
+     "start": {
+      "index": 806,
+      "col": 4,
+      "line": 43
+     },
+     "end": {
+      "index": 887,
+      "col": 5,
+      "line": 46
+     }
+    }
+   },
+   {
+    "ast": "ilasm",
+    "ilasm": "# encrypt/decrypt message",
+    "pos": {
+     "start": {
+      "index": 897,
+      "col": 4,
+      "line": 48
+     },
+     "end": {
+      "index": 924,
+      "col": 0,
+      "line": 49
+     }
+    }
+   },
+   {
+    "ast": "defvar",
+    "name": "index",
+    "type": {
+     "type": "builtin",
+     "kind": "u32",
+     "pos": {
+      "start": {
+       "index": 939,
+       "col": 15,
+       "line": 49
+      },
+      "end": {
+       "index": 942,
+       "col": 18,
+       "line": 49
+      }
+     }
+    },
+    "default": {
+     "expr": "immediate",
+     "value": "0",
+     "pos": {
+      "start": {
+       "index": 945,
+       "col": 21,
+       "line": 49
+      },
+      "end": {
+       "index": 946,
+       "col": 22,
+       "line": 49
+      }
+     }
+    },
+    "pos": {
+     "start": {
+      "index": 928,
+      "col": 4,
+      "line": 49
+     },
+     "end": {
+      "index": 947,
+      "col": 23,
+      "line": 49
+     }
+    }
+   },
+   {
+    "ast": "loop",
+    "code": [
+     {
+      "ast": "if",
+      "condleft": {
+       "expr": "arrayindex",
+       "from": {
+        "expr": "variable",
+        "var": "message",
+        "pos": {
+         "start": {
+          "index": 970,
+          "col": 11,
+          "line": 51
+         },
+         "end": {
+          "index": 977,
+          "col": 18,
+          "line": 51
+         }
+        }
+       },
+       "index": {
+        "expr": "variable",
+        "var": "index",
+        "pos": {
+         "start": {
+          "index": 978,
+          "col": 19,
+          "line": 51
+         },
+         "end": {
+          "index": 983,
+          "col": 24,
+          "line": 51
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 977,
+         "col": 18,
+         "line": 51
+        },
+        "end": {
+         "index": 985,
+         "col": 26,
+         "line": 51
+        }
+       }
+      },
+      "condition": "==",
+      "condright": {
+       "expr": "immediate",
+       "value": "0",
+       "pos": {
+        "start": {
+         "index": 988,
+         "col": 29,
+         "line": 51
+        },
+        "end": {
+         "index": 989,
+         "col": 30,
+         "line": 51
+        }
+       }
+      },
+      "code": [
+       {
+        "ast": "break",
+        "pos": {
+         "start": {
+          "index": 991,
+          "col": 32,
+          "line": 51
+         },
+         "end": {
+          "index": 997,
+          "col": 38,
+          "line": 51
+         }
+        }
+       }
+      ],
+      "pos": {
+       "start": {
+        "index": 967,
+        "col": 8,
+        "line": 51
+       },
+       "end": {
+        "index": 998,
+        "col": 39,
+        "line": 51
+       }
+      }
+     },
+     {
+      "ast": "save",
+      "saveloc": {
+       "expr": "arrayindex",
+       "from": {
+        "expr": "variable",
+        "var": "message",
+        "pos": {
+         "start": {
+          "index": 1012,
+          "col": 13,
+          "line": 52
+         },
+         "end": {
+          "index": 1019,
+          "col": 20,
+          "line": 52
+         }
+        }
+       },
+       "index": {
+        "expr": "variable",
+        "var": "index",
+        "pos": {
+         "start": {
+          "index": 1020,
+          "col": 21,
+          "line": 52
+         },
+         "end": {
+          "index": 1025,
+          "col": 26,
+          "line": 52
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 1019,
+         "col": 20,
+         "line": 52
+        },
+        "end": {
+         "index": 1027,
+         "col": 28,
+         "line": 52
+        }
+       }
+      },
+      "value": {
+       "expr": "op",
+       "op": "^",
+       "left": {
+        "expr": "arrayindex",
+        "from": {
+         "expr": "variable",
+         "var": "message",
+         "pos": {
+          "start": {
+           "index": 1029,
+           "col": 30,
+           "line": 52
+          },
+          "end": {
+           "index": 1036,
+           "col": 37,
+           "line": 52
+          }
+         }
+        },
+        "index": {
+         "expr": "variable",
+         "var": "index",
+         "pos": {
+          "start": {
+           "index": 1037,
+           "col": 38,
+           "line": 52
+          },
+          "end": {
+           "index": 1042,
+           "col": 43,
+           "line": 52
+          }
+         }
+        },
+        "pos": {
+         "start": {
+          "index": 1036,
+          "col": 37,
+          "line": 52
+         },
+         "end": {
+          "index": 1044,
+          "col": 45,
+          "line": 52
+         }
+        }
+       },
+       "right": {
+        "expr": "arrayindex",
+        "from": {
+         "expr": "variable",
+         "var": "key",
+         "pos": {
+          "start": {
+           "index": 1046,
+           "col": 47,
+           "line": 52
+          },
+          "end": {
+           "index": 1049,
+           "col": 50,
+           "line": 52
+          }
+         }
+        },
+        "index": {
+         "expr": "op",
+         "op": "%",
+         "left": {
+          "expr": "variable",
+          "var": "index",
+          "pos": {
+           "start": {
+            "index": 1050,
+            "col": 51,
+            "line": 52
+           },
+           "end": {
+            "index": 1055,
+            "col": 56,
+            "line": 52
+           }
+          }
+         },
+         "right": {
+          "expr": "variable",
+          "var": "key_len",
+          "pos": {
+           "start": {
+            "index": 1058,
+            "col": 59,
+            "line": 52
+           },
+           "end": {
+            "index": 1065,
+            "col": 66,
+            "line": 52
+           }
+          }
+         },
+         "pos": {
+          "start": {
+           "index": 1050,
+           "col": 51,
+           "line": 52
+          },
+          "end": {
+           "index": 1065,
+           "col": 66,
+           "line": 52
+          }
+         }
+        },
+        "pos": {
+         "start": {
+          "index": 1049,
+          "col": 50,
+          "line": 52
+         },
+         "end": {
+          "index": 1066,
+          "col": 67,
+          "line": 52
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 1029,
+         "col": 30,
+         "line": 52
+        },
+        "end": {
+         "index": 1066,
+         "col": 67,
+         "line": 52
+        }
+       }
+      },
+      "pos": {
+       "start": {
+        "index": 1007,
+        "col": 8,
+        "line": 52
+       },
+       "end": {
+        "index": 1067,
+        "col": 68,
+        "line": 52
+       }
+      }
+     },
+     {
+      "ast": "setvar",
+      "name": {
+       "expr": "variable",
+       "var": "index",
+       "pos": {
+        "start": {
+         "index": 1076,
+         "col": 8,
+         "line": 53
+        },
+        "end": {
+         "index": 1081,
+         "col": 13,
+         "line": 53
+        }
+       }
+      },
+      "value": {
+       "expr": "op",
+       "op": "+",
+       "left": {
+        "expr": "variable",
+        "var": "index",
+        "pos": {
+         "start": {
+          "index": 1084,
+          "col": 16,
+          "line": 53
+         },
+         "end": {
+          "index": 1089,
+          "col": 21,
+          "line": 53
+         }
+        }
+       },
+       "right": {
+        "expr": "immediate",
+        "value": "1",
+        "pos": {
+         "start": {
+          "index": 1092,
+          "col": 24,
+          "line": 53
+         },
+         "end": {
+          "index": 1093,
+          "col": 25,
+          "line": 53
+         }
+        }
+       },
+       "pos": {
+        "start": {
+         "index": 1084,
+         "col": 16,
+         "line": 53
+        },
+        "end": {
+         "index": 1093,
+         "col": 25,
+         "line": 53
+        }
+       }
+      },
+      "pos": {
+       "start": {
+        "index": 1076,
+        "col": 8,
+        "line": 53
+       },
+       "end": {
+        "index": 1094,
+        "col": 26,
+        "line": 53
+       }
+      }
+     }
+    ],
+    "pos": {
+     "start": {
+      "index": 952,
+      "col": 4,
+      "line": 50
+     },
+     "end": {
+      "index": 1100,
+      "col": 5,
+      "line": 54
+     }
+    }
+   }
+  ],
+  "type": {
+   "type": "builtin",
+   "kind": "void",
+   "pos": {
+    "start": {
+     "index": 744,
+     "col": 41,
+     "line": 40
+    },
+    "end": {
+     "index": 748,
+     "col": 45,
+     "line": 40
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 703,
+    "col": 0,
+    "line": 40
+   },
+   "end": {
+    "index": 1102,
+    "col": 1,
+    "line": 55
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "main:",
+  "pos": {
+   "start": {
+    "index": 1104,
+    "col": 0,
+    "line": 57
+   },
+   "end": {
+    "index": 1111,
+    "col": 0,
+    "line": 58
+   }
+  }
+ },
+ {
+  "ast": "setvar",
+  "name": {
+   "expr": "register",
+   "register": "sp",
+   "pos": {
+    "start": {
+     "index": 1112,
+     "col": 0,
+     "line": 59
+    },
+    "end": {
+     "index": 1115,
+     "col": 3,
+     "line": 59
+    }
+   }
+  },
+  "value": {
+   "expr": "op",
+   "op": "-",
+   "left": {
+    "expr": "register",
+    "register": "sp",
+    "pos": {
+     "start": {
+      "index": 1118,
+      "col": 6,
+      "line": 59
+     },
+     "end": {
+      "index": 1121,
+      "col": 9,
+      "line": 59
+     }
+    }
+   },
+   "right": {
+    "expr": "immediate",
+    "value": "256",
+    "pos": {
+     "start": {
+      "index": 1124,
+      "col": 12,
+      "line": 59
+     },
+     "end": {
+      "index": 1127,
+      "col": 15,
+      "line": 59
+     }
+    }
+   },
+   "pos": {
+    "start": {
+     "index": 1118,
+     "col": 6,
+     "line": 59
+    },
+    "end": {
+     "index": 1127,
+     "col": 15,
+     "line": 59
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1112,
+    "col": 0,
+    "line": 59
+   },
+   "end": {
+    "index": 1128,
+    "col": 16,
+    "line": 59
+   }
+  }
+ },
+ {
+  "ast": "defvar",
+  "name": "key",
+  "type": {
+   "type": "arrayptr",
+   "child": {
+    "type": "builtin",
+    "kind": "u8",
+    "pos": {
+     "start": {
+      "index": 1141,
+      "col": 12,
+      "line": 60
+     },
+     "end": {
+      "index": 1143,
+      "col": 14,
+      "line": 60
+     }
+    }
+   },
+   "pos": {
+    "start": {
+     "index": 1138,
+     "col": 9,
+     "line": 60
+    },
+    "end": {
+     "index": 1143,
+     "col": 14,
+     "line": 60
+    }
+   }
+  },
+  "default": {
+   "expr": "op",
+   "op": "+",
+   "left": {
+    "expr": "register",
+    "register": "sp",
+    "pos": {
+     "start": {
+      "index": 1146,
+      "col": 17,
+      "line": 60
+     },
+     "end": {
+      "index": 1149,
+      "col": 20,
+      "line": 60
+     }
+    }
+   },
+   "right": {
+    "expr": "immediate",
+    "value": "128",
+    "pos": {
+     "start": {
+      "index": 1152,
+      "col": 23,
+      "line": 60
+     },
+     "end": {
+      "index": 1155,
+      "col": 26,
+      "line": 60
+     }
+    }
+   },
+   "pos": {
+    "start": {
+     "index": 1146,
+     "col": 17,
+     "line": 60
+    },
+    "end": {
+     "index": 1155,
+     "col": 26,
+     "line": 60
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1129,
+    "col": 0,
+    "line": 60
+   },
+   "end": {
+    "index": 1156,
+    "col": 27,
+    "line": 60
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "",
+  "pos": {
+   "start": {
+    "index": 1157,
+    "col": 0,
+    "line": 61
+   },
+   "end": {
+    "index": 1159,
+    "col": 0,
+    "line": 62
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "print_str(\"Plain text:\\n  \")",
+  "pos": {
+   "start": {
+    "index": 1159,
+    "col": 0,
+    "line": 62
+   },
+   "end": {
+    "index": 1189,
+    "col": 0,
+    "line": 63
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "read_until_newline",
+   "args": [
+    {
+     "expr": "register",
+     "register": "sp",
+     "pos": {
+      "start": {
+       "index": 1208,
+       "col": 19,
+       "line": 63
+      },
+      "end": {
+       "index": 1211,
+       "col": 22,
+       "line": 63
+      }
+     }
+    },
+    {
+     "expr": "immediate",
+     "value": "128",
+     "pos": {
+      "start": {
+       "index": 1213,
+       "col": 24,
+       "line": 63
+      },
+      "end": {
+       "index": 1216,
+       "col": 27,
+       "line": 63
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1189,
+     "col": 0,
+     "line": 63
+    },
+    "end": {
+     "index": 1217,
+     "col": 28,
+     "line": 63
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1189,
+    "col": 0,
+    "line": 63
+   },
+   "end": {
+    "index": 1218,
+    "col": 29,
+    "line": 63
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "",
+  "pos": {
+   "start": {
+    "index": 1219,
+    "col": 0,
+    "line": 64
+   },
+   "end": {
+    "index": 1221,
+    "col": 0,
+    "line": 65
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "print_str(\"Key:\\n  \")",
+  "pos": {
+   "start": {
+    "index": 1221,
+    "col": 0,
+    "line": 65
+   },
+   "end": {
+    "index": 1244,
+    "col": 0,
+    "line": 66
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "read_until_newline",
+   "args": [
+    {
+     "expr": "variable",
+     "var": "key",
+     "pos": {
+      "start": {
+       "index": 1263,
+       "col": 19,
+       "line": 66
+      },
+      "end": {
+       "index": 1266,
+       "col": 22,
+       "line": 66
+      }
+     }
+    },
+    {
+     "expr": "immediate",
+     "value": "128",
+     "pos": {
+      "start": {
+       "index": 1268,
+       "col": 24,
+       "line": 66
+      },
+      "end": {
+       "index": 1271,
+       "col": 27,
+       "line": 66
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1244,
+     "col": 0,
+     "line": 66
+    },
+    "end": {
+     "index": 1272,
+     "col": 28,
+     "line": 66
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1244,
+    "col": 0,
+    "line": 66
+   },
+   "end": {
+    "index": 1273,
+    "col": 29,
+    "line": 66
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "",
+  "pos": {
+   "start": {
+    "index": 1274,
+    "col": 0,
+    "line": 67
+   },
+   "end": {
+    "index": 1276,
+    "col": 0,
+    "line": 68
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "print_str(\"Encrypted:\\n  \")",
+  "pos": {
+   "start": {
+    "index": 1276,
+    "col": 0,
+    "line": 68
+   },
+   "end": {
+    "index": 1305,
+    "col": 0,
+    "line": 69
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "translate",
+   "args": [
+    {
+     "expr": "register",
+     "register": "sp",
+     "pos": {
+      "start": {
+       "index": 1315,
+       "col": 10,
+       "line": 69
+      },
+      "end": {
+       "index": 1318,
+       "col": 13,
+       "line": 69
+      }
+     }
+    },
+    {
+     "expr": "variable",
+     "var": "key",
+     "pos": {
+      "start": {
+       "index": 1320,
+       "col": 15,
+       "line": 69
+      },
+      "end": {
+       "index": 1323,
+       "col": 18,
+       "line": 69
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1305,
+     "col": 0,
+     "line": 69
+    },
+    "end": {
+     "index": 1324,
+     "col": 19,
+     "line": 69
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1305,
+    "col": 0,
+    "line": 69
+   },
+   "end": {
+    "index": 1325,
+    "col": 20,
+    "line": 69
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "print_string",
+   "args": [
+    {
+     "expr": "register",
+     "register": "sp",
+     "pos": {
+      "start": {
+       "index": 1339,
+       "col": 13,
+       "line": 70
+      },
+      "end": {
+       "index": 1342,
+       "col": 16,
+       "line": 70
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1326,
+     "col": 0,
+     "line": 70
+    },
+    "end": {
+     "index": 1343,
+     "col": 17,
+     "line": 70
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1326,
+    "col": 0,
+    "line": 70
+   },
+   "end": {
+    "index": 1344,
+    "col": 18,
+    "line": 70
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "",
+  "pos": {
+   "start": {
+    "index": 1345,
+    "col": 0,
+    "line": 71
+   },
+   "end": {
+    "index": 1347,
+    "col": 0,
+    "line": 72
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "print_str(\"\\nDecrypted:\\n  \")",
+  "pos": {
+   "start": {
+    "index": 1347,
+    "col": 0,
+    "line": 72
+   },
+   "end": {
+    "index": 1378,
+    "col": 0,
+    "line": 73
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "translate",
+   "args": [
+    {
+     "expr": "register",
+     "register": "sp",
+     "pos": {
+      "start": {
+       "index": 1388,
+       "col": 10,
+       "line": 73
+      },
+      "end": {
+       "index": 1391,
+       "col": 13,
+       "line": 73
+      }
+     }
+    },
+    {
+     "expr": "variable",
+     "var": "key",
+     "pos": {
+      "start": {
+       "index": 1393,
+       "col": 15,
+       "line": 73
+      },
+      "end": {
+       "index": 1396,
+       "col": 18,
+       "line": 73
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1378,
+     "col": 0,
+     "line": 73
+    },
+    "end": {
+     "index": 1397,
+     "col": 19,
+     "line": 73
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1378,
+    "col": 0,
+    "line": 73
+   },
+   "end": {
+    "index": 1398,
+    "col": 20,
+    "line": 73
+   }
+  }
+ },
+ {
+  "ast": "expr",
+  "expr": {
+   "expr": "call",
+   "name": "print_string",
+   "args": [
+    {
+     "expr": "register",
+     "register": "sp",
+     "pos": {
+      "start": {
+       "index": 1412,
+       "col": 13,
+       "line": 74
+      },
+      "end": {
+       "index": 1415,
+       "col": 16,
+       "line": 74
+      }
+     }
+    }
+   ],
+   "pos": {
+    "start": {
+     "index": 1399,
+     "col": 0,
+     "line": 74
+    },
+    "end": {
+     "index": 1416,
+     "col": 17,
+     "line": 74
+    }
+   }
+  },
+  "pos": {
+   "start": {
+    "index": 1399,
+    "col": 0,
+    "line": 74
+   },
+   "end": {
+    "index": 1417,
+    "col": 18,
+    "line": 74
+   }
+  }
+ },
+ {
+  "ast": "ilasm",
+  "ilasm": "print_str(\"\\n\")",
+  "pos": {
+   "start": {
+    "index": 1418,
+    "col": 0,
+    "line": 75
+   },
+   "end": {
+    "index": 1434,
+    "col": 16,
+    "line": 75
+   }
+  }
+ }
+]
